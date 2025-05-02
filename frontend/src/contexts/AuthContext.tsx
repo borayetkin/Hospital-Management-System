@@ -32,8 +32,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = (user: User) => {
-    setUser(user);
-    localStorage.setItem('hospitalUser', JSON.stringify(user));
     toast.success('Account created successfully!');
   };
 
