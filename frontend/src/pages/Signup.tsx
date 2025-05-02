@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,13 +7,20 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
+import { User, UserRole } from '@/types';
+import { authService } from '@/services/authService';
 
 const Signup = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [identityNumber, setIdentityNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'patient' | 'doctor' | 'staff'>('patient');
+  const [role, setRole] = useState<UserRole>('patient');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [specialization, setSpecialization] = useState('');
+  const [staffRole, setStaffRole] = useState('');
+  const [dob, setDob] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
@@ -31,14 +37,40 @@ const Signup = () => {
       toast.error('Password must be at least 6 characters long');
       return;
     }
+
+    if (role === 'patient' && !dob) {
+      toast.error('Date of birth is required for patients');
+      return;
+    }
     
     setIsSubmitting(true);
     
     try {
-      await signup(name, email, password, role);
-      navigate('/');
+      const response = await authService.signup({
+        name,
+        email,
+        identity_number: identityNumber,
+        password,
+        role,
+        phone_number: phoneNumber,
+        specialization,
+        staff_role: staffRole,
+        dob: role === 'patient' ? dob : undefined
+      });
+
+      const user: User = {
+        userID: response.user_id,
+        name,
+        email,
+        identityNumber,
+        role
+      };
+      
+      signup(user);
+      navigate('/login');
     } catch (error) {
       console.error('Signup error:', error);
+      toast.error(error instanceof Error ? error.message : 'Signup failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -60,7 +92,7 @@ const Signup = () => {
               <RadioGroup 
                 id="role" 
                 value={role} 
-                onValueChange={(value) => setRole(value as 'patient' | 'doctor' | 'staff')}
+                onValueChange={(value) => setRole(value as UserRole)}
                 className="flex gap-6"
               >
                 <div className="flex items-center space-x-2">
@@ -75,6 +107,10 @@ const Signup = () => {
                   <RadioGroupItem value="staff" id="staff" />
                   <Label htmlFor="staff" className="cursor-pointer">Hospital Staff</Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="admin" id="admin" />
+                  <Label htmlFor="admin" className="cursor-pointer">Admin</Label>
+                </div>
               </RadioGroup>
             </div>
             
@@ -85,6 +121,17 @@ const Signup = () => {
                 placeholder="Enter your full name" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="identityNumber">Identity Number</Label>
+              <Input 
+                id="identityNumber" 
+                placeholder="Enter your identity number" 
+                value={identityNumber}
+                onChange={(e) => setIdentityNumber(e.target.value)}
                 required
               />
             </div>
@@ -100,6 +147,57 @@ const Signup = () => {
                 required
               />
             </div>
+
+            {role === 'patient' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input 
+                    id="phoneNumber" 
+                    placeholder="Enter your phone number" 
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input 
+                    id="dob" 
+                    type="date" 
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            {role === 'doctor' && (
+              <div className="space-y-2">
+                <Label htmlFor="specialization">Specialization</Label>
+                <Input 
+                  id="specialization" 
+                  placeholder="Enter your specialization" 
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            {role === 'staff' && (
+              <div className="space-y-2">
+                <Label htmlFor="staffRole">Staff Role</Label>
+                <Input 
+                  id="staffRole" 
+                  placeholder="Enter your staff role" 
+                  value={staffRole}
+                  onChange={(e) => setStaffRole(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

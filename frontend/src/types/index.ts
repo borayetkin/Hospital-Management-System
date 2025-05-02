@@ -1,50 +1,46 @@
-
 export type UserRole = 'patient' | 'doctor' | 'staff' | 'admin';
 
 export interface User {
-  id: string;
+  userID: number;
   name: string;
   email: string;
+  identityNumber: string;
   role: UserRole;
-  avatar?: string;
 }
 
 export interface Patient extends User {
-  role: 'patient';
-  balance: number;
+  patientID: number;
+  DOB: string;
   phoneNumber: string;
+  Balance: number;
+  role: 'patient';
 }
 
 export interface Doctor extends User {
-  role: 'doctor';
   specialization: string;
-  rating: number;
-  experience: number;
-  bio: string;
-  availableDays: string[];
-  price: number;
+  doctorLocation: string;
+  deptName: string;
+  role: 'doctor';
 }
 
-export interface Staff extends User {
+export interface Staff extends Employee {
   role: 'staff';
-  department: string;
 }
 
 export interface Admin extends User {
+  AdminID: number;
   role: 'admin';
 }
 
 export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  date: string;
+  appointmentID: number;
+  status: string;
+  rating: number | null;
+  review: string | null;
+  patientID: number;
+  doctorID: number;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  price: number;
-  isPaid: boolean;
-  reason?: string;
 }
 
 export interface TimeSlot {
@@ -65,12 +61,9 @@ export interface Review {
 }
 
 export interface MedicalResource {
-  id: string;
+  resourceID: number;
   name: string;
-  type: string;
-  department: string;
-  isAvailable: boolean;
-  quantity: number;
+  availability: string;
 }
 
 export interface ResourceReservation {
@@ -99,40 +92,90 @@ export interface ResourceFilterParams {
 }
 
 export interface Process {
-  id: string;
-  name: string;
-  description: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  appointmentId: string;
-  price: number;
-  date: string;
+  processID: number;
+  processName: string;
+  processDescription: string;
+  status: string;
+  appointmentID: number;
 }
 
 export interface Billing {
-  id: string;
-  date: string;
+  billingID: number;
+  billingDate: string;
   amount: number;
-  status: 'paid' | 'pending' | 'overdue';
-  processId: string;
+  paymentStatus: string;
+  processID: number;
 }
 
 export interface DoctorStatistics {
-  doctorId: string;
-  appointmentCount: number;
-  completedAppointments: number;
-  cancelledAppointments: number;
-  averageRating: number;
-  totalRevenue: number;
-  period: 'weekly' | 'monthly' | 'yearly';
+  reportID: number;
+  statID: number;
+  doctorID: number;
   prescriptionCount: number;
+  appointmentCount: number;
+  totalRevenue: number;
   reportDate: string;
+  ratings: number;
 }
 
 export interface PatientStatistics {
-  patientId: string;
+  reportID: number;
+  statID: number;
+  patientID: number;
   totalAppointments: number;
   totalProcesses: number;
   totalPaid: number;
   lastVisit: string;
   reportDate: string;
+}
+
+export interface Employee extends User {
+  employeeID: number;
+  salary: number;
+}
+
+export interface HospitalAdministrator extends Employee {
+  role: 'admin';
+}
+
+export interface Medication {
+  medicationName: string;
+  description: string;
+  information: string;
+}
+
+export interface Prescription {
+  medicationName: string;
+  appointmentID: number;
+}
+
+export interface Report {
+  reportID: number;
+  created_by: number;
+  time_stamp: string;
+}
+
+export interface EquipmentStatistics {
+  statID: number;
+  reportID: number;
+  resourceID: number;
+  usageCount: number;
+  lastUsedDate: string;
+  totalRequests: number;
+}
+
+export interface Request {
+  doctorID: number;
+  resourceID: number;
+  status: string;
+}
+
+export interface Department {
+  deptName: string;
+  deptLocation: string;
+}
+
+export interface DoctorPatient {
+  doctorID: number;
+  patientID: number;
 }

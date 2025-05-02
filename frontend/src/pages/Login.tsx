@@ -1,37 +1,31 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from "sonner";
+import { authService } from '@/services/authService';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'patient' | 'doctor' | 'staff' | 'admin'>('patient');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Prefill credentials based on role for demo purposes
-  const fillDemoCredentials = (selectedRole: 'patient' | 'doctor' | 'staff' | 'admin') => {
-    setRole(selectedRole);
-    setEmail(`${selectedRole}@example.com`);
-    setPassword('password');
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      await login(email, password, role);
+      const response = await authService.login({ email, password });
+      login(response.user);
       navigate('/');
     } catch (error) {
       console.error('Login error:', error);
+      toast.error(error instanceof Error ? error.message : 'Login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -48,33 +42,6 @@ const Login = () => {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="role">I am a:</Label>
-              <RadioGroup 
-                id="role" 
-                value={role} 
-                onValueChange={(value) => fillDemoCredentials(value as 'patient' | 'doctor' | 'staff' | 'admin')}
-                className="flex flex-wrap gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="patient" id="patient" />
-                  <Label htmlFor="patient" className="cursor-pointer">Patient</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="doctor" id="doctor" />
-                  <Label htmlFor="doctor" className="cursor-pointer">Doctor</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="staff" id="staff" />
-                  <Label htmlFor="staff" className="cursor-pointer">Hospital Staff</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="admin" id="admin" />
-                  <Label htmlFor="admin" className="cursor-pointer">Admin</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input 
@@ -102,17 +69,6 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-            </div>
-            
-            <div className="text-sm text-muted-foreground">
-              <span>Demo credentials are pre-filled. Use:</span>
-              <ul className="list-disc list-inside mt-1">
-                <li>patient@example.com (Patient)</li>
-                <li>doctor@example.com (Doctor)</li>
-                <li>staff@example.com (Staff)</li>
-                <li>admin@example.com (Admin)</li>
-              </ul>
-              <span>All use "password" as the password.</span>
             </div>
           </CardContent>
           
