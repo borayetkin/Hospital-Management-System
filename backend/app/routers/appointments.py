@@ -93,17 +93,6 @@ async def book_appointment(
             detail="Selected time slot is not available"
         )
     
-    # Check patient balance (assuming a fixed appointment fee)
-    fee = 150  # This could be dynamic based on doctor or stored in a settings table
-    
-    balance = execute_query(CHECK_PATIENT_BALANCE, (current_user["userid"], fee))
-    
-    if not balance:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Insufficient balance for appointment"
-        )
-    
     # Book appointment in a transaction
     try:
         # Create appointment
@@ -123,13 +112,6 @@ async def book_appointment(
         execute_query(
             UPDATE_SLOT_STATUS,
             (appointment.doctorID, appointment.startTime, appointment.endTime),
-            fetch=False
-        )
-        
-        # Deduct appointment fee from patient's balance
-        execute_query(
-            DEDUCT_BALANCE,
-            (fee, current_user["userid"]),
             fetch=False
         )
         

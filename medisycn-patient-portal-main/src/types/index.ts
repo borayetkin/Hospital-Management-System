@@ -27,6 +27,9 @@ export interface DoctorProfile {
   specialization: string;
   avgRating: number;
   appointmentCount: number;
+  experience?: string;
+  fee?: number;
+  profileImage?: string;
 }
 
 export interface Appointment {

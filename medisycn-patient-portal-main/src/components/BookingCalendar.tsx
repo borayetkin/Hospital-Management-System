@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -36,8 +35,20 @@ const BookingCalendar = ({
 
   // Function to check if a date is available
   const isDateAvailable = (date: Date) => {
+    // Make sure availableDates array exists before checking includes
+    if (!availableDates || !Array.isArray(availableDates)) {
+      console.error("availableDates is not a valid array:", availableDates);
+      return false;
+    }
+    
     const dateString = format(date, 'yyyy-MM-dd');
     return availableDates.includes(dateString);
+  };
+
+  // Helper function to safely get time value from slot (handling both camelCase and lowercase property names)
+  const getTimeValue = (slot: any, camelCaseKey: string, lowercaseKey: string) => {
+    // Try camelCase first (e.g., startTime), then lowercase (e.g., starttime)
+    return slot[camelCaseKey] || slot[lowercaseKey];
   };
 
   return (
@@ -61,27 +72,46 @@ const BookingCalendar = ({
           <h3 className="text-lg font-semibold">Available Time Slots</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {timeSlots.map((slot, index) => {
-              const startTime = parseISO(slot.startTime);
-              const endTime = parseISO(slot.endTime);
-              const timeDisplay = `${format(startTime, 'h:mm a')} - ${format(endTime, 'h:mm a')}`;
+              // Get startTime and endTime safely, handling both camelCase and lowercase
+              const startTimeStr = getTimeValue(slot, 'startTime', 'starttime');
+              const endTimeStr = getTimeValue(slot, 'endTime', 'endtime');
               
-              const isSelected = selectedSlot && 
-                selectedSlot.startTime === slot.startTime && 
-                selectedSlot.endTime === slot.endTime;
+              // Skip rendering this slot if time values are missing
+              if (!startTimeStr || !endTimeStr) {
+                console.error(`Skipping invalid time slot at index ${index}:`, slot);
+                return null;
+              }
               
-              return (
-                <Button
-                  key={index}
-                  variant={isSelected ? "default" : "outline"}
-                  className={cn(
-                    "h-auto py-3",
-                    isSelected ? "bg-medisync-purple hover:bg-medisync-purple-dark" : ""
-                  )}
-                  onClick={() => onSelectSlot(slot)}
-                >
-                  {timeDisplay}
-                </Button>
-              );
+              try {
+                const startTime = parseISO(startTimeStr);
+                const endTime = parseISO(endTimeStr);
+                const timeDisplay = `${format(startTime, 'h:mm a')} - ${format(endTime, 'h:mm a')}`;
+                
+                // Check if current slot matches selected slot
+                const isSelected = selectedSlot && (
+                  (selectedSlot.startTime === slot.startTime && selectedSlot.endTime === slot.endTime) ||
+                  (selectedSlot.startTime === slot.starttime && selectedSlot.endTime === slot.endtime) ||
+                  (selectedSlot.starttime === slot.startTime && selectedSlot.endtime === slot.endTime) ||
+                  (selectedSlot.starttime === slot.starttime && selectedSlot.endtime === slot.endtime)
+                );
+                
+                return (
+                  <Button
+                    key={index}
+                    variant={isSelected ? "default" : "outline"}
+                    className={cn(
+                      "h-auto py-3",
+                      isSelected ? "bg-medisync-purple hover:bg-medisync-purple-dark" : ""
+                    )}
+                    onClick={() => onSelectSlot(slot)}
+                  >
+                    {timeDisplay}
+                  </Button>
+                );
+              } catch (error) {
+                console.error(`Error parsing date at index ${index}:`, error, slot);
+                return null; // Skip rendering this slot if there's an error
+              }
             })}
           </div>
         </div>
@@ -95,7 +125,19 @@ const BookingCalendar = ({
                 <p className="font-medium">Selected Appointment:</p>
                 <p className="text-sm text-gray-600">
                   {selectedDate && format(selectedDate, 'MMMM d, yyyy')} at{' '}
-                  {format(parseISO(selectedSlot.startTime), 'h:mm a')} - {format(parseISO(selectedSlot.endTime), 'h:mm a')}
+                  {(() => {
+                    // Handle both camelCase and lowercase properties
+                    const startTimeStr = getTimeValue(selectedSlot, 'startTime', 'starttime');
+                    const endTimeStr = getTimeValue(selectedSlot, 'endTime', 'endtime');
+                    if (!startTimeStr || !endTimeStr) return 'Invalid time';
+                    
+                    try {
+                      return `${format(parseISO(startTimeStr), 'h:mm a')} - ${format(parseISO(endTimeStr), 'h:mm a')}`;
+                    } catch (error) {
+                      console.error('Error formatting selected time:', error);
+                      return 'Invalid time';
+                    }
+                  })()}
                 </p>
               </div>
               <Button 

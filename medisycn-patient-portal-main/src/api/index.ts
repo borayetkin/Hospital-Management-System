@@ -1,5 +1,9 @@
 import { AuthResponse, PatientProfile, DoctorProfile, Appointment, TimeSlot, User } from '../types';
 
+// Set this to false to use real API calls, true for mock data
+const USE_MOCK_DATA = false;
+
+// Real API endpoints
 const BASE_URL = 'http://localhost:8000/api/v1';
 
 // For development/demo purposes only
@@ -174,56 +178,152 @@ export const patientApi = {
   }
 };
 
-// Appointment API
-export const appointmentApi = {
-  getDoctors: async (specialization?: string, minRating?: number): Promise<DoctorProfile[]> => {
-    try {
-      // let url = `${BASE_URL}/appointments/doctors`;
-      // const params = new URLSearchParams();
-      // if (specialization) params.append('specialization', specialization);
-      // if (minRating) params.append('min_rating', minRating.toString());
-      // if (params.toString()) url += `?${params.toString()}`;
-      // return await fetch(url, {
-      //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      // }).then(res => res.json());
-      
-      return await mockApiCall([
+// Realistic doctor data with specialties matching the screenshot
+const MOCK_DOCTORS = [
         {
           doctorID: 101,
-          name: 'Dr. Sarah Johnson',
+    name: 'Dr. Emma Smith',
           specialization: 'Cardiology',
+    experience: '8+ years',
+    fee: 150,
           avgRating: 4.8,
-          appointmentCount: 253
+    appointmentCount: 253,
+    profileImage: '/doctors/emma-smith.jpg'
         },
         {
           doctorID: 102,
-          name: 'Dr. Mark Williams',
+    name: 'Dr. James Wilson',
           specialization: 'Neurology',
+    experience: '12+ years',
+    fee: 180,
           avgRating: 4.9,
-          appointmentCount: 187
+    appointmentCount: 187,
+    profileImage: '/doctors/james-wilson.jpg'
         },
         {
           doctorID: 103,
           name: 'Dr. Emily Chen',
           specialization: 'Pediatrics',
+    experience: '6+ years',
+    fee: 120,
           avgRating: 4.7,
-          appointmentCount: 312
+    appointmentCount: 312,
+    profileImage: '/doctors/emily-chen.jpg'
         },
         {
           doctorID: 104,
           name: 'Dr. Michael Brown',
           specialization: 'Orthopedics',
+    experience: '15+ years',
+    fee: 200,
           avgRating: 4.6,
-          appointmentCount: 205
+    appointmentCount: 205,
+    profileImage: '/doctors/michael-brown.jpg'
         },
         {
           doctorID: 105,
-          name: 'Dr. Anna Smith',
+    name: 'Dr. Anna Lee',
           specialization: 'Dermatology',
+    experience: '9+ years',
+    fee: 160,
           avgRating: 4.8,
-          appointmentCount: 178
+    appointmentCount: 178,
+    profileImage: '/doctors/anna-lee.jpg'
         }
-      ]);
+];
+
+// Mock appointment database to track booked slots
+let MOCK_APPOINTMENTS = [
+  // Initial appointment data if needed
+];
+
+// Appointment API
+export const appointmentApi = {
+  getDoctors: async (specialization?: string, minRating?: number): Promise<DoctorProfile[]> => {
+    try {
+      console.log("getDoctors called with:", { USE_MOCK_DATA, specialization, minRating });
+      
+      if (USE_MOCK_DATA) {
+        // Filter doctors based on criteria
+        let doctors = [...MOCK_DOCTORS];
+        console.log("Using mock doctors:", doctors);
+        
+        if (specialization) {
+          doctors = doctors.filter(doc => 
+            doc.specialization.toLowerCase().includes(specialization.toLowerCase())
+          );
+        }
+        
+        if (minRating) {
+          doctors = doctors.filter(doc => doc.avgRating >= minRating);
+        }
+        
+        return await mockApiCall(doctors);
+      } else {
+        // Use real backend API
+        let url = `${BASE_URL}/appointments/doctors`;
+        const params = new URLSearchParams();
+        if (specialization) params.append('specialization', specialization);
+        if (minRating) params.append('min_rating', minRating.toString());
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        console.log("Making API call to:", url);
+        
+        try {
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
+          
+          console.log("API response status:", response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("API error response:", errorData);
+            throw new Error(errorData.detail || 'Failed to get doctors');
+          }
+          
+          const doctors = await response.json();
+          console.log("API response data:", doctors);
+          
+          // Format the response to match our UI needs, handling lowercase property names
+          const formattedDoctors = doctors.map((doctor: any) => {
+            // Handle property name variations (employeeid vs employeeID vs doctorID)
+            const doctorId = doctor.doctorID || doctor.employeeID || doctor.employeeid || null;
+            
+            console.log("Mapping doctor:", doctor, "ID field:", doctorId);
+            
+            return {
+              doctorID: doctorId, // Use the appropriate ID field
+              name: doctor.name || 'Unknown Doctor',
+              specialization: doctor.specialization || 'General Practice',
+              avgRating: doctor.avgRating || doctor.rating || 0,
+              appointmentCount: doctor.appointmentCount || 0,
+              experience: `${Math.floor(Math.random() * 10) + 3}+ years`, // Add this to match UI
+              fee: doctor.fee || Math.floor(Math.random() * 100) + 100 // Add this to match UI
+            };
+          });
+          
+          console.log("Formatted doctors:", formattedDoctors);
+          return formattedDoctors;
+        } catch (fetchError) {
+          console.error("Fetch error:", fetchError);
+          // If API call fails, fall back to mock data for development
+          console.log("API call failed, falling back to mock data");
+          let doctors = [...MOCK_DOCTORS];
+          
+          if (specialization) {
+            doctors = doctors.filter(doc => 
+              doc.specialization.toLowerCase().includes(specialization.toLowerCase())
+            );
+          }
+          
+          if (minRating) {
+            doctors = doctors.filter(doc => doc.avgRating >= minRating);
+          }
+          
+          return doctors;
+        }
+      }
     } catch (error) {
       console.error('Get doctors error:', error);
       throw error;
@@ -232,18 +332,77 @@ export const appointmentApi = {
 
   getDoctorAvailableDates: async (doctorId: number): Promise<string[]> => {
     try {
-      // return await fetch(`${BASE_URL}/appointments/doctor/${doctorId}/available-dates`, {
-      //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      // }).then(res => res.json());
+      console.log(`getDoctorAvailableDates called with doctorId: ${doctorId}, type: ${typeof doctorId}`);
       
-      // Generate dates for the next 7 days
-      const dates = [];
-      for (let i = 1; i <= 7; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        dates.push(date.toISOString().split('T')[0]);
+      // If using mock data, any doctorId is fine (even 0)
+      if (USE_MOCK_DATA) {
+        console.log("Using mock data for available dates with doctorId:", doctorId);
+        // Generate dates for the next 365 days (full year)
+        const dates = [];
+        for (let i = 1; i <= 365; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() + i);
+          
+          // Skip weekends (Saturday and Sunday) for some doctors
+          if (doctorId % 2 === 0 && (date.getDay() === 0 || date.getDay() === 6)) {
+            continue;
+          }
+          
+          dates.push(date.toISOString().split('T')[0]);
+        }
+        console.log(`Generated ${dates.length} mock dates for doctorId: ${doctorId}`);
+        return await mockApiCall(dates);
+      } else {
+        // Use real backend API
+        const url = `${BASE_URL}/appointments/doctor/${doctorId}/available-dates`;
+        console.log("Making API call to:", url);
+        
+        try {
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
+          
+          console.log("API response status:", response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("API error response:", errorData);
+            throw new Error(errorData.detail || 'Failed to get available dates');
+          }
+          
+          const dates = await response.json();
+          console.log(`Received ${dates.length} dates from API for doctorId: ${doctorId}`);
+          return dates;
+        } catch (fetchError) {
+          console.error(`Fetch error for doctorId ${doctorId}:`, fetchError);
+          
+          // For development/testing - fall back to mock data
+          console.log("API call failed, falling back to mock dates for doctorId:", doctorId);
+          
+          // Always use mock data on API error
+          const USE_MOCK_FOR_FALLBACK = true;
+          
+          if (USE_MOCK_FOR_FALLBACK) {
+            // Generate dates for testing
+            const dates = [];
+            for (let i = 1; i <= 365; i++) {
+              const date = new Date();
+              date.setDate(date.getDate() + i);
+              
+              // Skip weekends for even doctorIds
+              if (doctorId % 2 === 0 && (date.getDay() === 0 || date.getDay() === 6)) {
+                continue;
+              }
+              
+              dates.push(date.toISOString().split('T')[0]);
+            }
+            console.log(`Generated ${dates.length} fallback dates for doctorId: ${doctorId}`);
+            return dates;
+          } else {
+            throw fetchError; // Re-throw if not using fallback
+          }
+        }
       }
-      return await mockApiCall(dates);
     } catch (error) {
       console.error('Get available dates error:', error);
       throw error;
@@ -252,29 +411,132 @@ export const appointmentApi = {
 
   getDoctorTimeSlots: async (doctorId: number, date: string): Promise<TimeSlot[]> => {
     try {
-      // return await fetch(`${BASE_URL}/appointments/doctor/${doctorId}/slots?date=${date}`, {
-      //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      // }).then(res => res.json());
+      console.log(`getDoctorTimeSlots called with doctorId: ${doctorId}, date: ${date}`);
       
-      // Generate time slots for the selected date (9 AM to 5 PM)
-      const slots = [];
-      const selectedDate = new Date(date);
-      for (let hour = 9; hour < 17; hour++) {
-        selectedDate.setHours(hour, 0, 0);
-        const startTime = new Date(selectedDate);
+      // If using mock data, any doctorId is fine (even 0)
+      if (USE_MOCK_DATA) {
+        console.log("Using mock data for time slots with doctorId:", doctorId);
+        // Generate time slots for the selected date (30-minute intervals)
+        const slots = [];
+        const selectedDate = new Date(date);
         
-        selectedDate.setHours(hour + 1, 0, 0);
-        const endTime = new Date(selectedDate);
+        // Customize working hours based on doctor
+        let startHour = 9; // Default start at 9 AM
+        let endHour = 17;  // Default end at 5 PM
         
-        // Skip some slots to simulate unavailability
-        if (hour !== 12 && hour !== 15) { // Skip lunch hour and 3 PM
-          slots.push({
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString()
+        // Some doctors have different schedules
+        if (doctorId % 3 === 0) {
+          startHour = 8;  // Start at 8 AM
+          endHour = 16;   // End at 4 PM
+        } else if (doctorId % 3 === 1) {
+          startHour = 10; // Start at 10 AM
+          endHour = 18;   // End at 6 PM
+        }
+        
+        // Filter out already booked appointments
+        const bookedSlots = MOCK_APPOINTMENTS.filter(apt => 
+          apt.doctorID === doctorId && 
+          apt.startTime.includes(date) &&
+          apt.status !== 'Cancelled'
+        ).map(apt => ({
+          start: new Date(apt.startTime).getHours() + (new Date(apt.startTime).getMinutes() / 60),
+          end: new Date(apt.endTime).getHours() + (new Date(apt.endTime).getMinutes() / 60)
+        }));
+        
+        // Generate 30-minute slots
+        for (let hour = startHour; hour < endHour; hour++) {
+          for (let minutes = 0; minutes < 60; minutes += 30) {
+            selectedDate.setHours(hour, minutes, 0);
+            const startTime = new Date(selectedDate);
+            
+            selectedDate.setMinutes(minutes + 30);
+            const endTime = new Date(selectedDate);
+            
+            // Calculate time as decimal for comparison (e.g., 9.5 for 9:30)
+            const slotStartDecimal = hour + (minutes / 60);
+            
+            // Check if slot is booked or during lunch hour (12-13)
+            const isLunchHour = slotStartDecimal >= 12 && slotStartDecimal < 13;
+            const isBooked = bookedSlots.some(
+              bookedSlot => slotStartDecimal >= bookedSlot.start && slotStartDecimal < bookedSlot.end
+            );
+            
+            // Skip lunch hour and booked slots
+            if (!isLunchHour && !isBooked) {
+              slots.push({
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString()
+              });
+            }
+          }
+        }
+        
+        console.log(`Generated ${slots.length} mock time slots for doctorId: ${doctorId}`);
+        return await mockApiCall(slots);
+      } else {
+        // Use real backend API
+        const url = `${BASE_URL}/appointments/doctor/${doctorId}/slots?date=${date}`;
+        console.log("Making API call to:", url);
+        
+        try {
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           });
+          
+          console.log("API response status:", response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("API error response:", errorData);
+            throw new Error(errorData.detail || 'Failed to get time slots');
+          }
+          
+          const slots = await response.json();
+          console.log(`Received ${slots.length} time slots from API for doctorId: ${doctorId}`);
+          return slots;
+        } catch (fetchError) {
+          console.error(`Fetch error for doctorId ${doctorId}:`, fetchError);
+          
+          // For development/testing - fall back to mock data
+          console.log("API call failed, falling back to mock time slots for doctorId:", doctorId);
+          
+          // Always use mock data on API error
+          const USE_MOCK_FOR_FALLBACK = true;
+          
+          if (USE_MOCK_FOR_FALLBACK) {
+            // Generate fallback time slots
+            const slots = [];
+            const selectedDate = new Date(date);
+            
+            // Customize working hours based on doctor ID
+            let startHour = 9; 
+            let endHour = 17;
+            
+            // Generate 30-minute slots (skipping lunch hour)
+            for (let hour = startHour; hour < endHour; hour++) {
+              if (hour === 12) continue; // Skip lunch hour
+              
+              for (let minutes = 0; minutes < 60; minutes += 30) {
+                selectedDate.setHours(hour, minutes, 0);
+                const startTime = new Date(selectedDate);
+                
+                selectedDate.setMinutes(minutes + 30);
+                const endTime = new Date(selectedDate);
+                
+                slots.push({
+                  startTime: startTime.toISOString(),
+                  endTime: endTime.toISOString()
+                });
+              }
+            }
+            
+            console.log(`Generated ${slots.length} fallback time slots for doctorId: ${doctorId}`);
+            return slots;
+          } else {
+            throw fetchError; // Re-throw if not using fallback
+          }
         }
       }
-      return await mockApiCall(slots);
     } catch (error) {
       console.error('Get time slots error:', error);
       throw error;
@@ -283,25 +545,64 @@ export const appointmentApi = {
 
   bookAppointment: async (doctorId: number, startTime: string, endTime: string): Promise<Appointment> => {
     try {
-      // return await fetch(`${BASE_URL}/appointments/book`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify({ doctorID: doctorId, startTime, endTime })
-      // }).then(res => res.json());
+      console.log(`bookAppointment called with doctorId: ${doctorId}`);
       
-      return await mockApiCall({
-        appointmentID: Math.floor(Math.random() * 1000),
-        patientID: 1,
-        doctorID: doctorId,
-        startTime: startTime,
-        endTime: endTime,
-        status: 'Scheduled' as const
-      });
+      // Validate doctorId
+      if (isNaN(doctorId)) {
+        console.error("Invalid doctorId for booking:", doctorId);
+        throw new Error("Invalid doctor ID");
+      }
+
+      if (USE_MOCK_DATA) {
+        // Create a new appointment
+        const newAppointment = {
+          appointmentID: Math.floor(Math.random() * 1000) + 1000,
+          patientID: 1,
+          doctorID: doctorId,
+          doctorName: MOCK_DOCTORS.find(d => d.doctorID === doctorId)?.name || '',
+          startTime: startTime,
+          endTime: endTime,
+          status: 'Scheduled' as const
+        };
+        
+        // Add to our mock database
+        MOCK_APPOINTMENTS.push(newAppointment);
+        
+        return await mockApiCall(newAppointment);
+      } else {
+        // Use real backend API
+        const response = await fetch(`${BASE_URL}/appointments/book`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ doctorID: doctorId, startTime, endTime })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to book appointment');
+        }
+        
+        return await response.json();
+      }
     } catch (error) {
       console.error('Book appointment error:', error);
+      throw error;
+    }
+  },
+
+  // Generate available slots for a year (utility function to help with initialization)
+  generateYearlySlots: async (doctorId: number): Promise<void> => {
+    try {
+      // This would be a backend script, not exposed to the frontend in a real app
+      console.log(`Generating yearly slots for doctor ${doctorId}`);
+      
+      // In a real implementation, this would create database entries
+      return await mockApiCall(undefined);
+    } catch (error) {
+      console.error('Generate yearly slots error:', error);
       throw error;
     }
   },

@@ -2,114 +2,114 @@
 
 # Get doctors for appointments
 GET_DOCTORS_FOR_APPOINTMENTS = """
-SELECT d.employeeID, u.name, d.specialization, 
+SELECT d.employeeid, u.name, d.specialization, 
        AVG(a.rating) as rating
 FROM Doctors d
-JOIN "User" u ON d.employeeID = u.userID
-LEFT JOIN Appointment a ON d.doctorID = a.doctorID
+JOIN "User" u ON d.employeeid = u.userid
+LEFT JOIN Appointment a ON d.employeeid = a.doctorid
 {where_clause}
-GROUP BY d.employeeID, u.name, d.specialization
+GROUP BY d.employeeid, u.name, d.specialization
 ORDER BY rating DESC NULLS LAST
 """
 
 # Get doctor's available slots
 GET_DOCTOR_SLOTS = """
-SELECT doctorID, startTime, endTime
+SELECT doctorid, starttime, endtime
 FROM Slots
-WHERE doctorID = %s
-AND DATE(startTime) = %s
-AND availability = 'Available'
-ORDER BY startTime
+WHERE doctorid = %s
+AND DATE(starttime) = %s
+AND availability = 'available'
+ORDER BY starttime
 """
 
 # Get all available dates for a doctor
 GET_DOCTOR_AVAILABLE_DATES = """
-SELECT DISTINCT DATE(startTime) as date
+SELECT DISTINCT DATE(starttime) as date
 FROM Slots
-WHERE doctorID = %s
-AND availability = 'Available'
-AND startTime > NOW()
+WHERE doctorid = %s
+AND availability = 'available'
+AND starttime > NOW()
 ORDER BY date
 """
 
 # Check slot availability
 CHECK_SLOT_AVAILABILITY = """
-SELECT doctorID, startTime, endTime
+SELECT doctorid, starttime, endtime
 FROM Slots
-WHERE doctorID = %s
-AND startTime = %s
-AND endTime = %s
-AND availability = 'Available'
+WHERE doctorid = %s
+AND starttime = %s
+AND endtime = %s
+AND availability = 'available'
 """
 
 # Check patient balance
 CHECK_PATIENT_BALANCE = """
-SELECT Balance
+SELECT balance
 FROM Patients
-WHERE patientID = %s AND Balance >= %s
+WHERE patientid = %s AND balance >= %s
 """
 
 # Create appointment
 CREATE_APPOINTMENT = """
-INSERT INTO Appointment (status, rating, review, patientID, doctorID, startTime, endTime)
+INSERT INTO Appointment (status, rating, review, patientid, doctorid, starttime, endtime)
 VALUES ('Scheduled', NULL, NULL, %s, %s, %s, %s)
-RETURNING appointmentID
+RETURNING appointmentid
 """
 
 # Update slot availability
 UPDATE_SLOT_STATUS = """
 UPDATE Slots
-SET availability = 'Booked'
-WHERE doctorID = %s AND startTime = %s AND endTime = %s
+SET availability = 'booked'
+WHERE doctorid = %s AND starttime = %s AND endtime = %s
 """
 
 # Deduct appointment fee
 DEDUCT_BALANCE = """
 UPDATE Patients
-SET Balance = Balance - %s
-WHERE patientID = %s
+SET balance = balance - %s
+WHERE patientid = %s
 """
 
 # Get patient appointments
 GET_PATIENT_APPOINTMENTS = """
-SELECT a.appointmentID, a.patientID, a.doctorID, a.startTime, a.endTime, 
-       a.status, a.rating, a.review, u.name as doctorName,
+SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+       a.status, a.rating, a.review, u.name as doctorname,
        d.specialization
 FROM Appointment a
-JOIN Doctors d ON a.doctorID = d.employeeID
-JOIN "User" u ON d.employeeID = u.userID
-WHERE a.patientID = %s
+JOIN Doctors d ON a.doctorid = d.employeeid
+JOIN "User" u ON d.employeeid = u.userid
+WHERE a.patientid = %s
 {status_clause}
-ORDER BY a.startTime DESC
+ORDER BY a.starttime DESC
 """
 
 # Get doctor appointments
 GET_DOCTOR_APPOINTMENTS = """
-SELECT a.appointmentID, a.patientID, a.doctorID, a.startTime, a.endTime, 
-       a.status, a.rating, a.review, u.name as patientName
+SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+       a.status, a.rating, a.review, u.name as patientname
 FROM Appointment a
-JOIN Patients p ON a.patientID = p.patientID
-JOIN "User" u ON p.patientID = u.userID
-WHERE a.doctorID = %s
+JOIN Patients p ON a.patientid = p.patientid
+JOIN "User" u ON p.patientid = u.userid
+WHERE a.doctorid = %s
 {status_clause}
 {time_clause}
-ORDER BY a.startTime {order}
+ORDER BY a.starttime {order}
 """
 
 # Update appointment status
 UPDATE_APPOINTMENT_STATUS = """
 UPDATE Appointment
 SET status = %s
-WHERE appointmentID = %s
-RETURNING appointmentID
+WHERE appointmentid = %s
+RETURNING appointmentid
 """
 
 # Add review to appointment
 ADD_APPOINTMENT_REVIEW = """
 UPDATE Appointment
 SET rating = %s, review = %s
-WHERE appointmentID = %s
-AND patientID = %s
+WHERE appointmentid = %s
+AND patientid = %s
 AND status = 'Completed'
-RETURNING appointmentID
+RETURNING appointmentid
 """

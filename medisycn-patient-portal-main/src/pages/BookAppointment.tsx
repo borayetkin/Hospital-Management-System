@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -8,9 +7,10 @@ import Navbar from '@/components/Navbar';
 import BookingCalendar from '@/components/BookingCalendar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 const BookAppointment = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -34,31 +34,108 @@ const BookAppointment = () => {
     }
 
     const fetchDoctorDetails = async () => {
-      if (!doctorId) return;
+      // Log the doctorId from URL params
+      console.log("BookAppointment - doctorId param:", doctorId, typeof doctorId);
+      
+      if (!doctorId) {
+        console.error("No doctorId provided in URL");
+        toast({
+          title: "Error",
+          description: "No doctor ID provided",
+          variant: "destructive"
+        });
+        navigate('/doctors');
+        return;
+      }
 
       try {
         setIsLoading(true);
         
-        // Fetch doctor details and available dates
-        const [doctorsData, availableDatesData] = await Promise.all([
-          appointmentApi.getDoctors(),
-          appointmentApi.getDoctorAvailableDates(parseInt(doctorId))
-        ]);
+        // Add debugging
+        console.log("Doctor ID from URL param:", doctorId);
+        const parsedDoctorId = parseInt(doctorId);
+        console.log("Parsed Doctor ID:", parsedDoctorId, typeof parsedDoctorId);
         
-        const selectedDoctor = doctorsData.find(d => d.doctorID === parseInt(doctorId));
-        
-        if (!selectedDoctor) {
+        if (isNaN(parsedDoctorId)) {
+          console.error("Invalid doctor ID:", doctorId);
           toast({
             title: "Error",
-            description: "Doctor not found",
+            description: "Invalid doctor ID",
             variant: "destructive"
           });
           navigate('/doctors');
           return;
         }
         
-        setDoctor(selectedDoctor);
-        setAvailableDates(availableDatesData);
+        // Fetch doctor details and available dates
+        console.log("Making API calls with doctorId:", parsedDoctorId);
+        
+        try {
+          // First get doctor details
+          const doctorsData = await appointmentApi.getDoctors();
+          console.log("All doctors:", doctorsData);
+          console.log("Looking for doctor with ID:", parsedDoctorId);
+          
+          // Find the doctor with the matching ID, comparing as numbers to avoid string/number mismatches
+          const selectedDoctor = doctorsData.find(d => {
+            // Log each doctor's ID for debugging
+            console.log(`Doctor ${d.name} has ID: ${d.doctorID}, type: ${typeof d.doctorID}`);
+            // Convert both IDs to numbers for comparison if they're not already
+            const doctorIdNum = typeof d.doctorID === 'number' ? d.doctorID : Number(d.doctorID);
+            return doctorIdNum === parsedDoctorId;
+          });
+          
+          console.log("Selected doctor:", selectedDoctor);
+          
+          if (!selectedDoctor) {
+            console.error("No doctor found with ID:", parsedDoctorId);
+            console.log("Available doctor IDs:", doctorsData.map(d => d.doctorID));
+            toast({
+              title: "Error",
+              description: "Doctor not found",
+              variant: "destructive"
+            });
+            navigate('/doctors');
+            return;
+          }
+          
+          setDoctor(selectedDoctor);
+          
+          // Now fetch available dates
+          try {
+            const availableDatesData = await appointmentApi.getDoctorAvailableDates(parsedDoctorId);
+            console.log("Available dates:", availableDatesData);
+            
+            if (availableDatesData && Array.isArray(availableDatesData)) {
+              setAvailableDates(availableDatesData);
+            } else {
+              console.error("Invalid availability data format:", availableDatesData);
+              setAvailableDates([]); // Set empty array if data is invalid
+              toast({
+                title: "Warning",
+                description: "Could not load available dates",
+                variant: "destructive"
+              });
+            }
+          } catch (datesError) {
+            console.error("Error fetching available dates:", datesError);
+            setAvailableDates([]); // Set empty array on error
+            toast({
+              title: "Warning",
+              description: "Could not load available dates",
+              variant: "destructive"
+            });
+          }
+        } catch (doctorError) {
+          console.error("Error fetching doctor:", doctorError);
+          toast({
+            title: "Error",
+            description: "Failed to load doctor details",
+            variant: "destructive"
+          });
+          navigate('/doctors');
+          return;
+        }
       } catch (error) {
         console.error('Error fetching doctor details:', error);
         toast({
@@ -80,9 +157,44 @@ const BookAppointment = () => {
       if (!doctorId || !selectedDate) return;
 
       try {
+        const parsedDoctorId = parseInt(doctorId);
+        if (isNaN(parsedDoctorId)) {
+          console.error("Invalid doctor ID for time slots:", doctorId);
+          return;
+        }
+        
         const dateString = selectedDate.toISOString().split('T')[0];
-        const slots = await appointmentApi.getDoctorTimeSlots(parseInt(doctorId), dateString);
-        setTimeSlots(slots);
+        console.log("Fetching time slots for doctor:", parsedDoctorId, "date:", dateString);
+        
+        try {
+          const slotsResponse = await appointmentApi.getDoctorTimeSlots(parsedDoctorId, dateString);
+          console.log("Time slots received:", slotsResponse);
+          
+          // Map responses to standardize property names (handling both camelCase and lowercase variations)
+          const normalizedSlots = slotsResponse.map(slot => {
+            // Create a new object with standardized properties
+            return {
+              doctorID: slot.doctorID || slot.doctorid,
+              doctorid: slot.doctorID || slot.doctorid,
+              startTime: slot.startTime || slot.starttime,
+              starttime: slot.startTime || slot.starttime,
+              endTime: slot.endTime || slot.endtime,
+              endtime: slot.endTime || slot.endtime
+            };
+          });
+          
+          console.log("Normalized time slots:", normalizedSlots);
+          setTimeSlots(normalizedSlots);
+        } catch (error) {
+          console.error("Error fetching time slots:", error);
+          // If there's an error, set an empty array to show a message to the user
+          setTimeSlots([]);
+          toast({
+            title: "Error",
+            description: "Could not load time slots for this date",
+            variant: "destructive"
+          });
+        }
       } catch (error) {
         console.error('Error fetching time slots:', error);
         toast({
@@ -113,20 +225,57 @@ const BookAppointment = () => {
   const handleBookAppointment = async () => {
     if (!doctorId || !selectedSlot) return;
 
+    const parsedDoctorId = parseInt(doctorId);
+    if (isNaN(parsedDoctorId)) {
+      console.error("Invalid doctor ID for booking:", doctorId);
+      toast({
+        title: "Error",
+        description: "Invalid doctor ID",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsBooking(true);
     try {
-      await appointmentApi.bookAppointment(
-        parseInt(doctorId),
-        selectedSlot.startTime,
-        selectedSlot.endTime
-      );
+      console.log("Booking appointment with doctor:", parsedDoctorId);
+      console.log("With time slot:", selectedSlot);
       
-      toast({
-        title: "Success",
-        description: "Appointment booked successfully",
-      });
+      // Get startTime and endTime safely from the selected slot
+      const startTime = selectedSlot.startTime || selectedSlot.starttime;
+      const endTime = selectedSlot.endTime || selectedSlot.endtime;
       
-      navigate('/dashboard');
+      if (!startTime || !endTime) {
+        console.error("Invalid time slot selected:", selectedSlot);
+        toast({
+          title: "Booking Failed",
+          description: "Invalid time slot selected",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      try {
+        await appointmentApi.bookAppointment(
+          parsedDoctorId,
+          startTime,
+          endTime
+        );
+        
+        toast({
+          title: "Success",
+          description: "Appointment booked successfully",
+        });
+        
+        navigate('/dashboard');
+      } catch (bookingError) {
+        console.error("Error in booking API call:", bookingError);
+        toast({
+          title: "Booking Failed",
+          description: "There was an error booking your appointment. Please try again.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error booking appointment:', error);
       toast({
@@ -185,9 +334,17 @@ const BookAppointment = () => {
                 ) : doctor ? (
                   <div>
                     <div className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-full bg-medisync-purple/20 flex items-center justify-center text-medisync-purple text-lg font-bold">
-                        {doctor.name.split(' ').map(n => n[0]).join('')}
-                      </div>
+                      {doctor.profileImage ? (
+                        <img 
+                          src={doctor.profileImage} 
+                          alt={doctor.name} 
+                          className="h-16 w-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-full bg-medisync-purple/20 flex items-center justify-center text-medisync-purple text-lg font-bold">
+                          {doctor.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                      )}
                       <div>
                         <h3 className="font-semibold text-lg">{doctor.name}</h3>
                         <p className="text-sm text-gray-500">{doctor.specialization}</p>
@@ -195,6 +352,13 @@ const BookAppointment = () => {
                     </div>
                     
                     <Separator className="my-4" />
+                    
+                    <p className="text-sm text-gray-600 mb-4">
+                      {doctor.experience ? 
+                        `Specialized in ${doctor.specialization.toLowerCase()} health with ${doctor.experience} of experience.` : 
+                        `Experienced specialist with ${doctor.appointmentCount}+ appointments.`
+                      }
+                    </p>
                     
                     <div className="space-y-4">
                       <div>
@@ -216,9 +380,21 @@ const BookAppointment = () => {
                         </div>
                       </div>
                       
+                      {doctor.fee && (
+                        <div>
+                          <p className="text-sm text-gray-500">Consultation Fee</p>
+                          <div className="flex items-center mt-1 text-medisync-purple">
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            <p className="font-semibold">${doctor.fee}</p>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div>
                         <p className="text-sm text-gray-500">Experience</p>
-                        <p className="font-semibold mt-1">{doctor.appointmentCount}+ appointments</p>
+                        <p className="font-semibold mt-1">
+                          {doctor.experience || `${doctor.appointmentCount}+ appointments`}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -250,18 +426,37 @@ const BookAppointment = () => {
                       </div>
                     </div>
                   </div>
-                ) : doctor ? (
-                  <BookingCalendar
-                    availableDates={availableDates}
-                    onSelectDate={handleDateSelect}
-                    selectedDate={selectedDate}
-                    timeSlots={timeSlots}
-                    selectedSlot={selectedSlot}
-                    onSelectSlot={handleSlotSelect}
-                    onConfirm={handleBookAppointment}
-                    isLoading={isBooking}
-                  />
-                ) : null}
+                ) : (
+                  <>
+                    <BookingCalendar
+                      availableDates={availableDates}
+                      onSelectDate={handleDateSelect}
+                      selectedDate={selectedDate}
+                      timeSlots={timeSlots}
+                      selectedSlot={selectedSlot}
+                      onSelectSlot={handleSlotSelect}
+                      onConfirm={handleBookAppointment}
+                      isLoading={isBooking}
+                    />
+                    
+                    {selectedDate && (
+                      <div className="mt-6 p-4 bg-gray-50 rounded-md">
+                        <h3 className="font-medium text-gray-700">
+                          Available time slots for {format(selectedDate, 'MMMM d, yyyy')}
+                        </h3>
+                        {timeSlots.length > 0 ? (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Select a convenient time slot below
+                          </p>
+                        ) : (
+                          <p className="text-sm text-yellow-700 mt-1">
+                            No available slots on this date. Please select another date.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
