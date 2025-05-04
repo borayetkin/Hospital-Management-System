@@ -1,28 +1,58 @@
-from fastapi import FastAPI, Depends
+# app/main.py
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import admin, doctor, patient, auth
-from app.database import get_db
+import logging
+from .routers import auth, patients, doctors, admin, appointments, resources
+from .config import settings
 
-app = FastAPI(title="Hospital Management System API")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]
+)
 
-# Make get_db available as a dependency
-app.dependency_overrides[get_db] = get_db
+# Create FastAPI app
+app = FastAPI(
+    title="MediSync API",
+    description="Hospital Appointment Management System API",
+    version="1.0.0",
+)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-app.include_router(admin.router, prefix="/admin", tags=["Admin"])
-app.include_router(doctor.router, prefix="/doctor", tags=["Doctor"])
-app.include_router(patient.router, prefix="/patient", tags=["Patient"])
+# Include routers with versioned prefix
+api_prefix = settings.API_V1_STR
+app.include_router(auth.router, prefix=api_prefix)
+app.include_router(patients.router, prefix=api_prefix)
+app.include_router(doctors.router, prefix=api_prefix)
+app.include_router(admin.router, prefix=api_prefix)
+app.include_router(appointments.router, prefix=api_prefix)
+app.include_router(resources.router, prefix=api_prefix)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Hospital Management System API"} 
+    return {
+        "name": "MediSync API",
+        "description": "Hospital Appointment Management System",
+        "version": "1.0.0",
+        "status": "running",
+        "documentation": "/docs"
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
