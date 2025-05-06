@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { doctorApi } from '@/api';
@@ -26,36 +25,100 @@ import { useToast } from '@/hooks/use-toast';
 import { Appointment } from '@/types';
 import Navbar from '@/components/Navbar';
 
+// Helper function to capitalize the first letter of a string
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Transform API response to match frontend format
+const transformAppointmentData = (data: any): Appointment => {
+  return {
+    appointmentID: data.appointmentid || data.appointment_id || data.appointmentID,
+    patientID: data.patientid || data.patient_id || data.patientID,
+    doctorID: data.doctorid || data.doctor_id || data.doctorID,
+    doctorName: data.doctorname || data.doctor_name || data.doctorName,
+    startTime: data.starttime || data.start_time || data.startTime,
+    endTime: data.endtime || data.end_time || data.endTime,
+    status: (data.status || '').toLowerCase() as 'scheduled' | 'completed' | 'cancelled',
+    rating: data.rating,
+    review: data.review,
+    specialization: data.specialization
+  };
+};
+
 const AppointmentManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<'Scheduled' | 'Completed' | 'Cancelled'>('Scheduled');
+  const [newStatus, setNewStatus] = useState<'scheduled' | 'completed' | 'cancelled'>('scheduled');
 
-  const { data: appointments, isLoading } = useQuery({
+  const { data: appointments, isLoading, refetch } = useQuery({
     queryKey: ['doctorAppointments'],
     queryFn: () => doctorApi.getAppointments(),
   });
 
   const updateAppointmentMutation = useMutation({
-    mutationFn: ({appointmentId, status}: {appointmentId: number, status: 'Scheduled' | 'Completed' | 'Cancelled'}) => 
-      doctorApi.updateAppointmentStatus(appointmentId, status),
-    onSuccess: () => {
+    mutationFn: ({appointmentId, status}: {appointmentId: number, status: 'scheduled' | 'completed' | 'cancelled'}) => {
+      console.log('Mutation called with:', { appointmentId, status });
+      // Send capitalized status to match what the API expects
+      return fetch(`http://localhost:8000/api/v1/appointments/${appointmentId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: capitalize(status) })
+      }).then(async response => {
+        console.log(`Direct API Response status: ${response.status}`);
+        if (!response.ok) {
+          const text = await response.text();
+          try {
+            const errorData = JSON.parse(text);
+            console.error('API error response:', errorData);
+            throw new Error(errorData.detail || `Failed to update status: ${response.status}`);
+          } catch (e) {
+            console.error('API error response (not JSON):', text);
+            throw new Error(`Failed to update status: ${response.status}`);
+          }
+        }
+        const data = await response.json();
+        // Transform the data to match the frontend format
+        return transformAppointmentData(data);
+      });
+    },
+    onSuccess: (data, variables) => {
+      console.log('Mutation succeeded, transformed data:', data);
+      
+      // Force refetch appointments to get updated data
+      refetch();
+      
+      // Also invalidate the query cache
       queryClient.invalidateQueries({ queryKey: ['doctorAppointments'] });
+      
       toast({
         title: "Appointment updated",
-        description: `Appointment status changed to ${newStatus}`,
+        description: `Appointment status changed to ${variables.status}`,
       });
       setIsDialogOpen(false);
+      
+      // Update the local state immediately for a responsive UI
+      if (appointments && selectedAppointment) {
+        const updatedAppointments = appointments.map(appointment => 
+          appointment.appointmentID === variables.appointmentId 
+            ? data // Use the transformed data from the API response
+            : appointment
+        );
+        
+        // Update the appointments data directly in the query cache
+        queryClient.setQueryData(['doctorAppointments'], updatedAppointments);
+      }
     },
     onError: (error) => {
+      console.error("Update error details:", error);
       toast({
         title: "Error updating appointment",
         description: "An error occurred while updating the appointment status.",
         variant: "destructive",
       });
-      console.error("Update error:", error);
     },
   });
 
@@ -67,10 +130,17 @@ const AppointmentManagement = () => {
 
   const handleUpdateStatus = () => {
     if (selectedAppointment) {
+      console.log('handleUpdateStatus called with:', { 
+        appointmentID: selectedAppointment.appointmentID, 
+        currentStatus: selectedAppointment.status,
+        newStatus 
+      });
       updateAppointmentMutation.mutate({
         appointmentId: selectedAppointment.appointmentID,
         status: newStatus
       });
+    } else {
+      console.error('No appointment selected');
     }
   };
 
@@ -86,9 +156,9 @@ const AppointmentManagement = () => {
     );
   }
 
-  const scheduledAppointments = appointments?.filter(app => app.status === 'Scheduled') || [];
-  const completedAppointments = appointments?.filter(app => app.status === 'Completed') || [];
-  const cancelledAppointments = appointments?.filter(app => app.status === 'Cancelled') || [];
+  const scheduledAppointments = appointments?.filter(app => app.status === 'scheduled') || [];
+  const completedAppointments = appointments?.filter(app => app.status === 'completed') || [];
+  const cancelledAppointments = appointments?.filter(app => app.status === 'cancelled') || [];
 
   return (
     <div className="container mx-auto p-4">
@@ -153,9 +223,9 @@ const AppointmentManagement = () => {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Scheduled">Scheduled</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -214,8 +284,8 @@ const AppointmentList = ({ appointments, onUpdateStatus }: AppointmentListProps)
                 </p>
                 <p className="text-sm mt-2">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                    appointment.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
-                    appointment.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                    appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                    appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
                     'bg-red-100 text-red-800'
                   }`}>
                     {appointment.status}

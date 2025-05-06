@@ -1,4 +1,3 @@
-
 import { formatDistanceToNow, format, parseISO } from 'date-fns';
 import { Appointment } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -26,11 +25,11 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
   // Set status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Scheduled':
+      case 'scheduled':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Completed':
+      case 'completed':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'Cancelled':
+      case 'cancelled':
         return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -91,7 +90,7 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
       </CardContent>
       
       <CardFooter className="p-4 pt-0 flex justify-end gap-2">
-        {appointment.status === 'Scheduled' && onCancel && (
+        {appointment.status === 'scheduled' && onCancel && (
           <Button 
             variant="outline" 
             onClick={() => onCancel(appointment.appointmentID)}
@@ -101,7 +100,7 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
             Cancel
           </Button>
         )}
-        {appointment.status === 'Completed' && !appointment.rating && onReview && (
+        {appointment.status === 'completed' && !appointment.rating && onReview && (
           <Button 
             variant="outline"
             onClick={() => onReview(appointment.appointmentID)}

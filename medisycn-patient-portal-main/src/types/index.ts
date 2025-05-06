@@ -39,9 +39,10 @@ export interface Appointment {
   doctorName?: string;
   startTime: string;
   endTime: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  status: 'scheduled' | 'completed' | 'cancelled';
   rating?: number;
   review?: string;
+  specialization?: string;
 }
 
 export interface TimeSlot {

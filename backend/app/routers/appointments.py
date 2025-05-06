@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime, date
 from ..utils.auth import get_current_user
 from ..database import execute_query, execute_transaction
-from ..schemas.appointment import AppointmentCreate, AppointmentResponse
+from ..schemas.appointment import AppointmentCreate, AppointmentResponse, StatusUpdate, ReviewCreate
 from ..models.appointment_queries import *
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
@@ -115,15 +115,27 @@ async def book_appointment(
             fetch=False
         )
         
+        # Get doctor name and specialization
+        doctor_info = execute_query(
+            "SELECT u.name, d.specialization FROM Doctors d JOIN \"User\" u ON d.employeeid = u.userid WHERE d.employeeid = %s",
+            (appointment.doctorID,)
+        )
+        
+        doctor_name = doctor_info[0]["name"] if doctor_info else None
+        specialization = doctor_info[0]["specialization"] if doctor_info else None
+        
+        # Return response formatted for the Pydantic model
         return {
-            "appointmentID": appointment_id,
-            "patientID": current_user["userid"],
-            "doctorID": appointment.doctorID,
-            "startTime": appointment.startTime,
-            "endTime": appointment.endTime,
-            "status": "Scheduled",
+            "appointmentid": appointment_id,
+            "patientid": current_user["userid"],
+            "doctorid": appointment.doctorID,
+            "doctorname": doctor_name,
+            "starttime": appointment.startTime,
+            "endtime": appointment.endTime,
+            "status": "scheduled",
             "rating": None,
-            "review": None
+            "review": None,
+            "specialization": specialization
         }
         
     except Exception as e:
@@ -196,26 +208,23 @@ async def get_doctor_appointments(
 @router.put("/{appointment_id}/status", response_model=AppointmentResponse)
 async def update_appointment_status(
     appointment_id: int,
-    status: str,
+    status_update: StatusUpdate,
     current_user = Depends(get_current_user)
 ):
-    """Update appointment status (for doctors)"""
-    if current_user["role"] != "Doctor":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only doctors can update appointment status"
-        )
+    
+    # Normalize status to lowercase
+    status_value = status_update.status.lower()
     
     # Validate status
-    valid_statuses = ["Scheduled", "Completed", "Cancelled"]
-    if status not in valid_statuses:
+    valid_statuses = ["scheduled", "completed", "cancelled"]
+    if status_value not in valid_statuses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Status must be one of {valid_statuses}"
         )
     
     # Update status
-    result = execute_query(UPDATE_APPOINTMENT_STATUS, (status, appointment_id))
+    result = execute_query(UPDATE_APPOINTMENT_STATUS, (status_value, appointment_id))
     
     if not result:
         raise HTTPException(
@@ -223,24 +232,31 @@ async def update_appointment_status(
             detail="Appointment not found"
         )
     
-    # Get updated appointment
+    # Get updated appointment with doctor name and specialization
     appointment = execute_query(
         """
-        SELECT a.appointmentID, a.patientID, a.doctorID, a.startTime, a.endTime, 
-               a.status, a.rating, a.review
+        SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+               a.status, a.rating, a.review, u.name as doctorname, d.specialization
         FROM Appointment a
-        WHERE a.appointmentID = %s
+        JOIN Doctors d ON a.doctorid = d.employeeid
+        JOIN "User" u ON d.employeeid = u.userid
+        WHERE a.appointmentid = %s
         """,
         (appointment_id,)
     )
     
+    if not appointment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Failed to retrieve updated appointment"
+        )
+    
     return appointment[0]
 
-@router.put("/{appointment_id}/review")
+@router.put("/{appointment_id}/review", response_model=AppointmentResponse)
 async def add_appointment_review(
     appointment_id: int,
-    rating: float,
-    review: Optional[str] = None,
+    review_data: ReviewCreate,
     current_user = Depends(get_current_user)
 ):
     """Add review to a completed appointment (for patients)"""
@@ -251,7 +267,7 @@ async def add_appointment_review(
         )
     
     # Validate rating
-    if rating < 1 or rating > 5:
+    if review_data.rating < 1 or review_data.rating > 5:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Rating must be between 1 and 5"
@@ -260,7 +276,7 @@ async def add_appointment_review(
     # Add review
     result = execute_query(
         ADD_APPOINTMENT_REVIEW, 
-        (rating, review, appointment_id, current_user["userid"])
+        (review_data.rating, review_data.review, appointment_id, current_user["userid"])
     )
     
     if not result:
@@ -269,4 +285,23 @@ async def add_appointment_review(
             detail="Appointment not found or not completed"
         )
     
-    return {"message": "Review added successfully"}
+    # Get updated appointment with doctor name and specialization
+    appointment = execute_query(
+        """
+        SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+               a.status, a.rating, a.review, u.name as doctorname, d.specialization
+        FROM Appointment a
+        JOIN Doctors d ON a.doctorid = d.employeeid
+        JOIN "User" u ON d.employeeid = u.userid
+        WHERE a.appointmentid = %s
+        """,
+        (appointment_id,)
+    )
+    
+    if not appointment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Failed to retrieve updated appointment"
+        )
+    
+    return appointment[0]

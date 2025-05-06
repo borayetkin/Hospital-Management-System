@@ -85,3 +85,19 @@ async def add_to_balance(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Amount must be positive"
         )
+    
+    try:
+        result = execute_query(ADD_TO_BALANCE, (amount, current_user["userid"]))
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Patient not found"
+            )
+        
+        return result[0]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add balance: {str(e)}"
+        )

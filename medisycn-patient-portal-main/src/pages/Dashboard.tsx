@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -57,30 +56,62 @@ const Dashboard = () => {
     navigate(`/appointments/${appointmentId}/review`);
   };
 
-  const handleCancelAppointment = (appointmentId: number) => {
+  const handleCancelAppointment = async (appointmentId: number) => {
     // Show confirmation and cancel appointment
     if (window.confirm('Are you sure you want to cancel this appointment?')) {
-      toast({
-        title: "Appointment Cancelled",
-        description: "Your appointment has been cancelled successfully",
-      });
-      
-      // Update appointments list
-      setAppointments(appointments.map(appointment => 
-        appointment.appointmentID === appointmentId 
-          ? { ...appointment, status: 'Cancelled' as const } 
-          : appointment
-      ));
+      try {
+        // Call the API to cancel the appointment
+        const response = await fetch(`http://localhost:8000/api/v1/appointments/${appointmentId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: 'cancelled' })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to cancel appointment');
+        }
+        
+        toast({
+          title: "Appointment Cancelled",
+          description: "Your appointment has been cancelled successfully",
+        });
+        
+        // Update appointments list locally
+        setAppointments(appointments.map(appointment => 
+          appointment.appointmentID === appointmentId 
+            ? { ...appointment, status: 'cancelled' as const } 
+            : appointment
+        ));
+        
+        // Refresh appointment data from server
+        try {
+          const data = await patientApi.getAppointments();
+          setAppointments(data);
+        } catch (refreshError) {
+          console.error('Error refreshing appointments:', refreshError);
+        }
+      } catch (error) {
+        console.error('Error cancelling appointment:', error);
+        toast({
+          title: "Error",
+          description: "Failed to cancel your appointment",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   // Split appointments into upcoming and past
   const upcomingAppointments = appointments.filter(
-    appointment => appointment.status === 'Scheduled'
+    appointment => appointment.status === 'scheduled'
   );
   
   const pastAppointments = appointments.filter(
-    appointment => appointment.status === 'Completed' || appointment.status === 'Cancelled'
+    appointment => appointment.status === 'completed' || appointment.status === 'cancelled'
   );
 
   if (isLoading) {
@@ -242,7 +273,7 @@ const Dashboard = () => {
                       <AppointmentCard
                         key={appointment.appointmentID}
                         appointment={appointment}
-                        onReview={appointment.status === 'Completed' && !appointment.rating ? handleReviewAppointment : undefined}
+                        onReview={appointment.status === 'completed' && !appointment.rating ? handleReviewAppointment : undefined}
                       />
                     ))}
                   </div>
