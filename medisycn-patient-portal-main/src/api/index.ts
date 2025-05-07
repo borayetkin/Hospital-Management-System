@@ -257,6 +257,18 @@ export const patientApi = {
       console.error('Get appointments error:', error);
       throw error;
     }
+  },
+
+  reviewAppointment: async (appointmentId: number, rating: number, review: string) => {
+    const response = await fetch(`${BASE_URL}/appointments/${appointmentId}/review`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ rating, review })
+    });
+    return response.ok;
   }
 };
 

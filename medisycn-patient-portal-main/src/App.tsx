@@ -12,6 +12,7 @@ import DoctorList from "./pages/DoctorList";
 import BookAppointment from "./pages/BookAppointment";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import AppointmentReview from './pages/patient/AppointmentReview';
 
 // Doctor pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
@@ -96,6 +97,11 @@ const App = () => (
             <Route path="/profile" element={
               <ProtectedRoute allowedRoles={['Patient']}>
                 <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/appointments/:appointmentId/review" element={
+              <ProtectedRoute allowedRoles={['Patient']}>
+                <AppointmentReview />
               </ProtectedRoute>
             } />
 

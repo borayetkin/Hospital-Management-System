@@ -113,6 +113,16 @@ UPDATE Appointment
 SET rating = %s, review = %s
 WHERE appointmentid = %s
 AND patientid = %s
-AND status = 'Completed'
+AND status = 'completed'
 RETURNING appointmentid
+"""
+
+# Get appointment with doctor name and specialization by appointmentid
+GET_APPOINTMENT_WITH_DOCTOR = """
+SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+       a.status, a.rating, a.review, u.name as doctorname, d.specialization
+FROM Appointment a
+JOIN Doctors d ON a.doctorid = d.employeeid
+JOIN "User" u ON d.employeeid = u.userid
+WHERE a.appointmentid = %s
 """

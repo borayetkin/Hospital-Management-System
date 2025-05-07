@@ -6,6 +6,7 @@ from ..utils.auth import get_current_user
 from ..database import execute_query, execute_transaction
 from ..schemas.appointment import AppointmentCreate, AppointmentResponse, StatusUpdate, ReviewCreate
 from ..models.appointment_queries import *
+import logging
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
@@ -234,14 +235,7 @@ async def update_appointment_status(
     
     # Get updated appointment with doctor name and specialization
     appointment = execute_query(
-        """
-        SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
-               a.status, a.rating, a.review, u.name as doctorname, d.specialization
-        FROM Appointment a
-        JOIN Doctors d ON a.doctorid = d.employeeid
-        JOIN "User" u ON d.employeeid = u.userid
-        WHERE a.appointmentid = %s
-        """,
+        GET_APPOINTMENT_WITH_DOCTOR,
         (appointment_id,)
     )
     
@@ -260,7 +254,11 @@ async def add_appointment_review(
     current_user = Depends(get_current_user)
 ):
     """Add review to a completed appointment (for patients)"""
+    logger = logging.getLogger("appointment_review")
+    logger.info(f"User {current_user['userid']} ({current_user['role']}) is attempting to review appointment {appointment_id} with rating {review_data.rating} and review '{review_data.review}'")
+
     if current_user["role"] != "Patient":
+        logger.warning(f"User {current_user['userid']} is not a patient. Forbidden.")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only patients can add reviews"
@@ -268,18 +266,22 @@ async def add_appointment_review(
     
     # Validate rating
     if review_data.rating < 1 or review_data.rating > 5:
+        logger.warning(f"Invalid rating {review_data.rating} for appointment {appointment_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Rating must be between 1 and 5"
         )
     
     # Add review
+    logger.info(f"Attempting to update appointment {appointment_id} for user {current_user['userid']} with rating {review_data.rating} and review '{review_data.review}'")
     result = execute_query(
         ADD_APPOINTMENT_REVIEW, 
         (review_data.rating, review_data.review, appointment_id, current_user["userid"])
     )
+    logger.info(f"SQL update result: {result}")
     
     if not result:
+        logger.error(f"Appointment {appointment_id} not found, not completed, or does not belong to user {current_user['userid']}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Appointment not found or not completed"
@@ -287,18 +289,13 @@ async def add_appointment_review(
     
     # Get updated appointment with doctor name and specialization
     appointment = execute_query(
-        """
-        SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
-               a.status, a.rating, a.review, u.name as doctorname, d.specialization
-        FROM Appointment a
-        JOIN Doctors d ON a.doctorid = d.employeeid
-        JOIN "User" u ON d.employeeid = u.userid
-        WHERE a.appointmentid = %s
-        """,
+        GET_APPOINTMENT_WITH_DOCTOR,
         (appointment_id,)
     )
+    logger.info(f"Fetched updated appointment: {appointment}")
     
     if not appointment:
+        logger.error(f"Failed to retrieve updated appointment {appointment_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Failed to retrieve updated appointment"
