@@ -80,3 +80,12 @@ export interface RevenueStats {
   startDate: string;
   endDate: string;
 }
+
+export interface Process {
+  processid: number;
+  processName: string;
+  processDescription: string;
+  status: string;
+  date: string;
+  price: number;
+}

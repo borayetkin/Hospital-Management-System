@@ -12,6 +12,7 @@ import Navbar from '@/components/Navbar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Appointment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
 
 // Helper function to capitalize the first letter of a string
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -48,12 +49,7 @@ const DoctorDashboard = () => {
     queryFn: () => doctorApi.getAppointments(undefined, true),
   });
 
-  const { data: patients, isLoading: patientsLoading } = useQuery({
-    queryKey: ['doctorPatients'],
-    queryFn: doctorApi.getPatients,
-  });
-
-  const isLoading = profileLoading || appointmentsLoading || patientsLoading;
+  const isLoading = profileLoading || appointmentsLoading;
 
   // Mutation for updating appointment status
   const updateAppointmentStatusMutation = useMutation({
@@ -198,24 +194,8 @@ const DoctorDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Patients
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <Users className="h-5 w-5 text-medisync-purple mr-2" />
-                <span className="text-2xl font-bold">
-                  {patients?.length || 0}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-        
+         
         <Tabs defaultValue="today" className="w-full">
           <TabsList>
             <TabsTrigger value="today">Today's Appointments</TabsTrigger>

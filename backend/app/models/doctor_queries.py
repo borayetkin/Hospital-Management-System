@@ -13,11 +13,11 @@ GROUP BY d.employeeID, u.name, d.specialization, d.doctorLocation, d.deptName
 
 # Get doctor's patients
 GET_DOCTOR_PATIENTS = """
-SELECT p.patientID, u.name, p.email, p.phoneNumber, p.DOB
+SELECT DISTINCT p.patientID, u.name, p.email, p.phoneNumber, p.DOB
 FROM Patients p
 JOIN "User" u ON p.patientID = u.userID
-JOIN DoctorPatient dp ON p.patientID = dp.patientID
-WHERE dp.doctorID = %s
+JOIN Appointment a ON p.patientID = a.patientID
+WHERE a.doctorID = %s
 ORDER BY u.name
 """
 

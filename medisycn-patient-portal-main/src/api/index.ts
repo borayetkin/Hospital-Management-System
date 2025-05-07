@@ -1,4 +1,4 @@
-import { AuthResponse, PatientProfile, DoctorProfile, Appointment, TimeSlot, User } from '../types';
+import { AuthResponse, PatientProfile, DoctorProfile, Appointment, TimeSlot, User, Process } from '../types';
 
 // Set this to false to use real API calls, true for mock data
 const USE_MOCK_DATA = false;
@@ -636,26 +636,75 @@ export const doctorApi = {
 
   getPatients: async (): Promise<PatientProfile[]> => {
     try {
-      return await mockApiCall([
-        {
-          patientID: 1,
-          name: 'John Doe',
-          dateOfBirth: '1990-01-01',
-          email: 'john.doe@example.com',
-          phoneNumber: '123-456-7890',
-          balance: 500
-        },
-        {
-          patientID: 2,
-          name: 'Jane Smith',
-          dateOfBirth: '1985-05-15',
-          email: 'jane.smith@example.com',
-          phoneNumber: '234-567-8901',
-          balance: 350
+      const response = await fetch(`${BASE_URL}/doctors/patients`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
-      ]);
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch doctor patients');
+      }
+      const data = await response.json();
+      // Transform each patient to match PatientProfile
+      return Array.isArray(data) ? data.map(transformPatientData) : [];
     } catch (error) {
       console.error('Get patients error:', error);
+      throw error;
+    }
+  },
+
+  getPatientMedicalHistory: async (patientId: number): Promise<{
+    patient: PatientProfile | null;
+    appointments: Appointment[];
+    processes: Process[];
+  }> => {
+    try {
+      // Fetch appointments for the current doctor
+      const appointmentsRes = await fetch(`${BASE_URL}/appointments/doctor`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const allAppointments = await appointmentsRes.json();
+      console.log('All appointments from API:', allAppointments);
+      
+      // Filter appointments for this specific patient
+      const appointments = allAppointments.filter((app: any) => {
+        console.log('Checking appointment:', app);
+        console.log('Appointment patientid:', app.patientid, 'type:', typeof app.patientid);
+        console.log('Looking for patientId:', patientId, 'type:', typeof patientId);
+        return app.patientid === patientId;
+      });
+      console.log('Filtered appointments:', appointments);
+
+      // Fetch processes
+      const processesRes = await fetch(`${BASE_URL}/processes/doctor/patient/${patientId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const processes = await processesRes.json();
+
+      // Get patient details from the processes data
+      const patient = {
+        patientID: patientId,
+        name: processes.length > 0 ? processes[0].patientName || 'Unknown' : 'Unknown',
+        dateOfBirth: '',
+        email: '',
+        phoneNumber: '',
+        balance: 0
+      };
+
+      console.log('Final data:', {
+        appointments,
+        patient,
+        processes
+      });
+
+      return { 
+        patient,
+        appointments, 
+        processes 
+      };
+    } catch (error) {
+      console.error('Get patient medical history error:', error);
       throw error;
     }
   }

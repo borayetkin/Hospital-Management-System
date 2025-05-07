@@ -4,7 +4,7 @@ import { doctorApi } from '@/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -21,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
 import { Appointment } from '@/types';
 import Navbar from '@/components/Navbar';
@@ -44,12 +46,27 @@ const transformAppointmentData = (data: any): Appointment => {
   };
 };
 
+interface Process {
+  processid: number;
+  processName: string;
+  processDescription: string;
+  status: string;
+  amount: number;
+  paymentStatus: string;
+}
+
 const AppointmentManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<'scheduled' | 'completed' | 'cancelled'>('scheduled');
+  const [newProcess, setNewProcess] = useState({
+    processName: '',
+    processDescription: '',
+    amount: 0
+  });
 
   const { data: appointments, isLoading, refetch } = useQuery({
     queryKey: ['doctorAppointments'],
@@ -122,6 +139,80 @@ const AppointmentManagement = () => {
     },
   });
 
+  // Add process queries
+  const { data: processes, refetch: refetchProcesses } = useQuery({
+    queryKey: ['appointmentProcesses', selectedAppointment?.appointmentID],
+    queryFn: () => {
+      if (!selectedAppointment) return Promise.resolve([]);
+      return fetch(`http://localhost:8000/api/v1/processes/doctor/patient/${selectedAppointment.patientID}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }).then(res => res.json());
+    },
+    enabled: !!selectedAppointment
+  });
+
+  const createProcessMutation = useMutation({
+    mutationFn: (processData: { processName: string; processDescription: string; amount: number }) => {
+      if (!selectedAppointment) throw new Error('No appointment selected');
+      return fetch('http://localhost:8000/api/v1/processes/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...processData,
+          appointmentID: selectedAppointment.appointmentID
+        })
+      }).then(res => res.json());
+    },
+    onSuccess: () => {
+      toast({
+        title: "Process created",
+        description: "New medical process has been added successfully.",
+      });
+      refetchProcesses();
+      setIsProcessDialogOpen(false);
+      setNewProcess({ processName: '', processDescription: '', amount: 0 });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create process.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const updateProcessStatusMutation = useMutation({
+    mutationFn: ({ processId, status }: { processId: number; status: string }) => {
+      return fetch(`http://localhost:8000/api/v1/processes/${processId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      }).then(res => res.json());
+    },
+    onSuccess: () => {
+      toast({
+        title: "Process updated",
+        description: "Process status has been updated successfully.",
+      });
+      refetchProcesses();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update process status.",
+        variant: "destructive",
+      });
+    }
+  });
+
   const openUpdateDialog = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setNewStatus(appointment.status);
@@ -142,6 +233,19 @@ const AppointmentManagement = () => {
     } else {
       console.error('No appointment selected');
     }
+  };
+
+  const openProcessDialog = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsProcessDialogOpen(true);
+  };
+
+  const handleCreateProcess = () => {
+    createProcessMutation.mutate(newProcess);
+  };
+
+  const handleUpdateProcessStatus = (processId: number, status: string) => {
+    updateProcessStatusMutation.mutate({ processId, status });
   };
 
   if (isLoading) {
@@ -177,6 +281,7 @@ const AppointmentManagement = () => {
             <AppointmentList 
               appointments={scheduledAppointments} 
               onUpdateStatus={openUpdateDialog} 
+              onManageProcesses={openProcessDialog}
             />
           </TabsContent>
           
@@ -184,6 +289,7 @@ const AppointmentManagement = () => {
             <AppointmentList 
               appointments={completedAppointments} 
               onUpdateStatus={openUpdateDialog} 
+              onManageProcesses={openProcessDialog}
             />
           </TabsContent>
           
@@ -191,6 +297,7 @@ const AppointmentManagement = () => {
             <AppointmentList 
               appointments={cancelledAppointments} 
               onUpdateStatus={openUpdateDialog} 
+              onManageProcesses={openProcessDialog}
             />
           </TabsContent>
         </Tabs>
@@ -239,6 +346,101 @@ const AppointmentManagement = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* New Process Management Dialog */}
+        <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Manage Medical Processes</DialogTitle>
+              <DialogDescription>
+                Add and manage medical processes for this appointment.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Add New Process Form */}
+              <div className="border p-4 rounded-lg">
+                <h3 className="font-medium mb-4">Add New Process</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Process Name</label>
+                    <Input
+                      value={newProcess.processName}
+                      onChange={(e) => setNewProcess(prev => ({ ...prev, processName: e.target.value }))}
+                      placeholder="Enter process name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Description</label>
+                    <Textarea
+                      value={newProcess.processDescription}
+                      onChange={(e) => setNewProcess(prev => ({ ...prev, processDescription: e.target.value }))}
+                      placeholder="Enter process description"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Amount ($)</label>
+                    <Input
+                      type="number"
+                      value={newProcess.amount}
+                      onChange={(e) => setNewProcess(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleCreateProcess}
+                    disabled={createProcessMutation.isPending}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Process
+                  </Button>
+                </div>
+              </div>
+
+              {/* Existing Processes List */}
+              <div className="border p-4 rounded-lg">
+                <h3 className="font-medium mb-4">Existing Processes</h3>
+                <div className="space-y-4">
+                  {processes?.map((process: Process) => (
+                    <div key={process.processid} className="border p-3 rounded-md">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{process.processName}</h4>
+                          <p className="text-sm text-muted-foreground">{process.processDescription}</p>
+                          <p className="text-sm mt-2">Amount: ${process.amount}</p>
+                          <p className="text-sm">Payment Status: {process.paymentStatus}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Select
+                            value={process.status}
+                            onValueChange={(value) => handleUpdateProcessStatus(process.processid, value)}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Scheduled">Scheduled</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="Cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsProcessDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -247,9 +449,10 @@ const AppointmentManagement = () => {
 interface AppointmentListProps {
   appointments: Appointment[];
   onUpdateStatus: (appointment: Appointment) => void;
+  onManageProcesses: (appointment: Appointment) => void;
 }
 
-const AppointmentList = ({ appointments, onUpdateStatus }: AppointmentListProps) => {
+const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses }: AppointmentListProps) => {
   if (appointments.length === 0) {
     return (
       <Card>
@@ -292,13 +495,20 @@ const AppointmentList = ({ appointments, onUpdateStatus }: AppointmentListProps)
                   </span>
                 </p>
               </div>
-              <div className="mt-4 sm:mt-0">
+              <div className="mt-4 sm:mt-0 flex space-x-2">
                 <Button 
                   variant="outline" 
                   className="w-full sm:w-auto"
                   onClick={() => onUpdateStatus(appointment)}
                 >
                   Update Status
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  className="w-full sm:w-auto"
+                  onClick={() => onManageProcesses(appointment)}
+                >
+                  Manage Processes
                 </Button>
               </div>
             </div>
