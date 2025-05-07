@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/Navbar';
 import { format } from 'date-fns';
 import { PatientProfile, Appointment, Process } from '../../types';
@@ -34,56 +35,109 @@ const PatientMedicalHistory: React.FC = () => {
     if (patientId) fetchData();
   }, [patientId]);
 
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'scheduled':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <Navbar />
       <div className="my-8">
-        <Button variant="outline" onClick={() => navigate(-1)} className="mb-4">Back</Button>
-        <h1 className="text-3xl font-semibold mb-6">Patient Medical History</h1>
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            ← Back
+          </Button>
+          <h1 className="text-3xl font-semibold">Patient Medical History</h1>
+        </div>
+
         {loading ? (
-          <p>Loading...</p>
+          <div className="flex justify-center items-center h-64">
+            <p className="text-lg text-gray-600">Loading patient information...</p>
+          </div>
         ) : error ? (
-          <p className="text-red-500">{error}</p>
+          <div className="bg-red-50 p-4 rounded-md">
+            <p className="text-red-500">{error}</p>
+          </div>
         ) : !patient ? (
-          <p>Patient not found.</p>
+          <div className="bg-yellow-50 p-4 rounded-md">
+            <p className="text-yellow-700">Patient not found.</p>
+          </div>
         ) : (
           <>
             <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Patient Info</CardTitle>
+              <CardHeader className="bg-gray-50">
+                <CardTitle className="text-xl">Patient Information</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><strong>Name:</strong> {patient.name}</div>
-                  <div><strong>Email:</strong> {patient.email}</div>
-                  <div><strong>Date of Birth:</strong> {patient.dob ? format(new Date(patient.dob), 'PPP') : 'N/A'}</div>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-500">Full Name</p>
+                    <p className="font-medium">{patient.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{patient.email}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-500">Date of Birth</p>
+                    <p className="font-medium">{patient.dob ? format(new Date(patient.dob), 'PPP') : 'N/A'}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Appointments</CardTitle>
+              <CardHeader className="bg-gray-50">
+                <CardTitle className="text-xl">Appointments</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {appointments.length === 0 ? (
-                  <p>No appointments found.</p>
+                  <p className="text-gray-500 text-center py-4">No appointments found.</p>
                 ) : (
                   <div className="space-y-4">
                     {appointments.map(app => (
-                      <div key={app.appointmentid} className="border p-3 rounded-md">
-                        <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                          <div>
-                            <p><strong>Date:</strong> {app.starttime ? format(new Date(app.starttime), 'PPP') : 'N/A'}</p>
-                            <p><strong>Time:</strong> {app.starttime ? format(new Date(app.starttime), 'h:mm a') : 'N/A'} - {app.endtime ? format(new Date(app.endtime), 'h:mm a') : 'N/A'}</p>
-                            <p><strong>Status:</strong> {app.status}</p>
-                            <p><strong>Doctor:</strong> {app.doctorname}</p>
-                            {app.specialization && <p><strong>Specialization:</strong> {app.specialization}</p>}
+                      <div key={app.appointmentid} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge className={getStatusColor(app.status)}>
+                                {app.status}
+                              </Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-500">Date & Time</p>
+                              <p className="font-medium">
+                                {app.starttime ? format(new Date(app.starttime), 'PPP') : 'N/A'}
+                              </p>
+                              <p className="text-gray-600">
+                                {app.starttime ? format(new Date(app.starttime), 'h:mm a') : 'N/A'} - 
+                                {app.endtime ? format(new Date(app.endtime), 'h:mm a') : 'N/A'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-500">Doctor</p>
+                              <p className="font-medium">{app.doctorname}</p>
+                              {app.specialization && (
+                                <p className="text-sm text-gray-600">{app.specialization}</p>
+                              )}
+                            </div>
                           </div>
                           {app.rating && (
-                            <div className="mt-2 md:mt-0">
-                              <p><strong>Rating:</strong> {app.rating}</p>
-                              <p><strong>Review:</strong> {app.review}</p>
+                            <div className="bg-gray-50 p-3 rounded-md">
+                              <p className="text-sm text-gray-500">Rating & Review</p>
+                              <p className="font-medium">Rating: {app.rating}/5</p>
+                              {app.review && (
+                                <p className="text-sm text-gray-600 mt-1">{app.review}</p>
+                              )}
                             </div>
                           )}
                         </div>
@@ -95,23 +149,44 @@ const PatientMedicalHistory: React.FC = () => {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Medical Processes</CardTitle>
+              <CardHeader className="bg-gray-50">
+                <CardTitle className="text-xl">Medical Processes</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {processes.length === 0 ? (
-                  <p>No processes found.</p>
+                  <p className="text-gray-500 text-center py-4">No medical processes found.</p>
                 ) : (
                   <div className="space-y-4">
                     {processes.map(proc => (
-                      <div key={proc.processid} className="border p-3 rounded-md">
-                        <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                          <div>
-                            <p><strong>Name:</strong> {proc.processName}</p>
-                            <p><strong>Description:</strong> {proc.processDescription}</p>
-                            <p><strong>Status:</strong> {proc.status}</p>
-                            <p><strong>Date:</strong> {proc.process_date ? format(new Date(proc.process_date), 'PPP') : 'N/A'}</p>
-                            <p><strong>Price:</strong> ${proc.amount}</p>
+                      <div key={proc.processid} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge className={getStatusColor(proc.status)}>
+                                {proc.status}
+                              </Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-500">Process Name</p>
+                              <p className="font-medium">{proc.processName}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-500">Description</p>
+                              <p className="text-gray-600">{proc.processDescription}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-gray-500">Date</p>
+                              <p className="font-medium">
+                                {proc.process_date ? format(new Date(proc.process_date), 'PPP') : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="bg-gray-50 p-3 rounded-md">
+                            <p className="text-sm text-gray-500">Billing</p>
+                            <p className="font-medium">${proc.amount}</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Status: {proc.paymentStatus || 'Pending'}
+                            </p>
                           </div>
                         </div>
                       </div>
