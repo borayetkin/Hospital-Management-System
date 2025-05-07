@@ -86,10 +86,13 @@ ORDER BY a.starttime DESC
 # Get doctor appointments
 GET_DOCTOR_APPOINTMENTS = """
 SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
-       a.status, a.rating, a.review, u.name as patientname
+       a.status, a.rating, a.review, u.name as patientname,
+       d.specialization,u2.name as doctorname
 FROM Appointment a
 JOIN Patients p ON a.patientid = p.patientid
 JOIN "User" u ON p.patientid = u.userid
+JOIN Doctors d ON a.doctorid = d.employeeid
+JOIN "User" u2 ON d.employeeid = u2.userid
 WHERE a.doctorid = %s
 {status_clause}
 {time_clause}

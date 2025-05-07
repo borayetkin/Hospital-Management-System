@@ -56,9 +56,7 @@ const PatientMedicalHistory: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><strong>Name:</strong> {patient.name}</div>
                   <div><strong>Email:</strong> {patient.email}</div>
-                  <div><strong>Date of Birth:</strong> {patient.dateOfBirth}</div>
-                  <div><strong>Phone:</strong> {patient.phoneNumber}</div>
-                  <div><strong>Balance:</strong> ${patient.balance}</div>
+                  <div><strong>Date of Birth:</strong> {patient.dob ? format(new Date(patient.dob), 'PPP') : 'N/A'}</div>
                 </div>
               </CardContent>
             </Card>
@@ -73,13 +71,13 @@ const PatientMedicalHistory: React.FC = () => {
                 ) : (
                   <div className="space-y-4">
                     {appointments.map(app => (
-                      <div key={app.appointmentID} className="border p-3 rounded-md">
+                      <div key={app.appointmentid} className="border p-3 rounded-md">
                         <div className="flex flex-col md:flex-row md:justify-between md:items-center">
                           <div>
-                            <p><strong>Date:</strong> {app.startTime ? format(new Date(app.startTime.replace(' ', 'T')), 'PPP') : 'N/A'}</p>
-                            <p><strong>Time:</strong> {app.startTime ? format(new Date(app.startTime.replace(' ', 'T')), 'h:mm a') : 'N/A'} - {app.endTime ? format(new Date(app.endTime.replace(' ', 'T')), 'h:mm a') : 'N/A'}</p>
+                            <p><strong>Date:</strong> {app.starttime ? format(new Date(app.starttime), 'PPP') : 'N/A'}</p>
+                            <p><strong>Time:</strong> {app.starttime ? format(new Date(app.starttime), 'h:mm a') : 'N/A'} - {app.endtime ? format(new Date(app.endtime), 'h:mm a') : 'N/A'}</p>
                             <p><strong>Status:</strong> {app.status}</p>
-                            <p><strong>Doctor:</strong> {app.doctorName}</p>
+                            <p><strong>Doctor:</strong> {app.doctorname}</p>
                             {app.specialization && <p><strong>Specialization:</strong> {app.specialization}</p>}
                           </div>
                           {app.rating && (
@@ -112,8 +110,8 @@ const PatientMedicalHistory: React.FC = () => {
                             <p><strong>Name:</strong> {proc.processName}</p>
                             <p><strong>Description:</strong> {proc.processDescription}</p>
                             <p><strong>Status:</strong> {proc.status}</p>
-                            <p><strong>Date:</strong> {proc.date ? format(new Date(proc.date.replace(' ', 'T')), 'PPP') : 'N/A'}</p>
-                            <p><strong>Price:</strong> ${proc.price}</p>
+                            <p><strong>Date:</strong> {proc.process_date ? format(new Date(proc.process_date), 'PPP') : 'N/A'}</p>
+                            <p><strong>Price:</strong> ${proc.amount}</p>
                           </div>
                         </div>
                       </div>

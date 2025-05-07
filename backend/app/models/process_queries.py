@@ -29,11 +29,14 @@ SELECT
     pr.processName AS "processName",
     pr.processDescription AS "processDescription",
     pr.status,
-    a.startTime AS date,
-    b.amount AS price
+    a.startTime AS "process_date",
+    b.amount,
+    b.paymentStatus,
+    d.name AS "doctor_name"
 FROM Process pr
 JOIN Appointment a ON pr.appointmentID = a.appointmentID
 LEFT JOIN Billing b ON pr.processid = b.processid
+JOIN "User" d ON d.userID = a.doctorID
 WHERE a.patientID = %s
 AND a.doctorID = %s
 ORDER BY a.startTime DESC

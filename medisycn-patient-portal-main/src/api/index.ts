@@ -660,21 +660,19 @@ export const doctorApi = {
     processes: Process[];
   }> => {
     try {
+      // Fetch all patients for this doctor
+      const patientsRes = await fetch(`${BASE_URL}/doctors/patients`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const allPatients = await patientsRes.json();
+      const patient = allPatients.find((p: any) => p.patientID === patientId || p.patientid === patientId) || null;
+
       // Fetch appointments for the current doctor
       const appointmentsRes = await fetch(`${BASE_URL}/appointments/doctor`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const allAppointments = await appointmentsRes.json();
-      console.log('All appointments from API:', allAppointments);
-      
-      // Filter appointments for this specific patient
-      const appointments = allAppointments.filter((app: any) => {
-        console.log('Checking appointment:', app);
-        console.log('Appointment patientid:', app.patientid, 'type:', typeof app.patientid);
-        console.log('Looking for patientId:', patientId, 'type:', typeof patientId);
-        return app.patientid === patientId;
-      });
-      console.log('Filtered appointments:', appointments);
+      const appointments = allAppointments.filter((app: any) => app.patientid === patientId);
 
       // Fetch processes
       const processesRes = await fetch(`${BASE_URL}/processes/doctor/patient/${patientId}`, {
@@ -682,19 +680,9 @@ export const doctorApi = {
       });
       const processes = await processesRes.json();
 
-      // Get patient details from the processes data
-      const patient = {
-        patientID: patientId,
-        name: processes.length > 0 ? processes[0].patientName || 'Unknown' : 'Unknown',
-        dateOfBirth: '',
-        email: '',
-        phoneNumber: '',
-        balance: 0
-      };
-
       console.log('Final data:', {
-        appointments,
         patient,
+        appointments,
         processes
       });
 
