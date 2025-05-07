@@ -4,7 +4,7 @@ import { doctorApi } from '@/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -55,6 +55,16 @@ interface Process {
   paymentStatus: string;
 }
 
+const getStatusBadgeClass = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'scheduled': return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
+    case 'completed': return 'bg-green-100 text-green-800 hover:bg-green-200';
+    case 'cancelled': return 'bg-red-100 text-red-800 hover:bg-red-200';
+    case 'in progress': return 'bg-amber-100 text-amber-800 hover:bg-amber-200';
+    default: return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+  }
+};
+
 const AppointmentManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -75,8 +85,6 @@ const AppointmentManagement = () => {
 
   const updateAppointmentMutation = useMutation({
     mutationFn: ({appointmentId, status}: {appointmentId: number, status: 'scheduled' | 'completed' | 'cancelled'}) => {
-      console.log('Mutation called with:', { appointmentId, status });
-      // Send capitalized status to match what the API expects
       return fetch(`http://localhost:8000/api/v1/appointments/${appointmentId}/status`, {
         method: 'PUT',
         headers: {
@@ -85,52 +93,28 @@ const AppointmentManagement = () => {
         },
         body: JSON.stringify({ status: capitalize(status) })
       }).then(async response => {
-        console.log(`Direct API Response status: ${response.status}`);
         if (!response.ok) {
           const text = await response.text();
           try {
             const errorData = JSON.parse(text);
-            console.error('API error response:', errorData);
             throw new Error(errorData.detail || `Failed to update status: ${response.status}`);
           } catch (e) {
-            console.error('API error response (not JSON):', text);
             throw new Error(`Failed to update status: ${response.status}`);
           }
         }
-        const data = await response.json();
-        // Transform the data to match the frontend format
-        return transformAppointmentData(data);
+        return response.json();
       });
     },
-    onSuccess: (data, variables) => {
-      console.log('Mutation succeeded, transformed data:', data);
-      
-      // Force refetch appointments to get updated data
+    onSuccess: () => {
       refetch();
-      
-      // Also invalidate the query cache
       queryClient.invalidateQueries({ queryKey: ['doctorAppointments'] });
-      
       toast({
         title: "Appointment updated",
-        description: `Appointment status changed to ${variables.status}`,
+        description: `Appointment status changed to ${newStatus}`,
       });
       setIsDialogOpen(false);
-      
-      // Update the local state immediately for a responsive UI
-      if (appointments && selectedAppointment) {
-        const updatedAppointments = appointments.map(appointment => 
-          appointment.appointmentID === variables.appointmentId 
-            ? data // Use the transformed data from the API response
-            : appointment
-        );
-        
-        // Update the appointments data directly in the query cache
-        queryClient.setQueryData(['doctorAppointments'], updatedAppointments);
-      }
     },
     onError: (error) => {
-      console.error("Update error details:", error);
       toast({
         title: "Error updating appointment",
         description: "An error occurred while updating the appointment status.",
@@ -139,7 +123,6 @@ const AppointmentManagement = () => {
     },
   });
 
-  // Add process queries
   const { data: processes, refetch: refetchProcesses } = useQuery({
     queryKey: ['appointmentProcesses', selectedAppointment?.appointmentID],
     queryFn: () => {
@@ -221,17 +204,10 @@ const AppointmentManagement = () => {
 
   const handleUpdateStatus = () => {
     if (selectedAppointment) {
-      console.log('handleUpdateStatus called with:', { 
-        appointmentID: selectedAppointment.appointmentID, 
-        currentStatus: selectedAppointment.status,
-        newStatus 
-      });
       updateAppointmentMutation.mutate({
         appointmentId: selectedAppointment.appointmentID,
         status: newStatus
       });
-    } else {
-      console.error('No appointment selected');
     }
   };
 
@@ -250,11 +226,15 @@ const AppointmentManagement = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="min-h-screen bg-white">
         <Navbar />
-        <div className="my-8">
-          <h1 className="text-3xl font-semibold mb-6">Appointment Management</h1>
-          <p>Loading appointments...</p>
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-3xl font-bold mb-8 text-medisync-dark-purple">Appointment Management</h1>
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-pulse-light text-medisync-purple">
+              <p className="text-lg">Loading appointments...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -265,68 +245,92 @@ const AppointmentManagement = () => {
   const cancelledAppointments = appointments?.filter(app => app.status === 'cancelled') || [];
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <div className="my-8">
-        <h1 className="text-3xl font-semibold mb-6">Appointment Management</h1>
-        
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8 text-medisync-dark-purple">Appointment Management</h1>
         <Tabs defaultValue="scheduled" className="w-full">
-          <TabsList>
-            <TabsTrigger value="scheduled">Scheduled ({scheduledAppointments.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedAppointments.length})</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled ({cancelledAppointments.length})</TabsTrigger>
-          </TabsList>
-          
+          <div className="mb-6 border-b">
+            <TabsList className="bg-transparent">
+              <TabsTrigger 
+                value="scheduled" 
+                className="data-[state=active]:border-medisync-purple data-[state=active]:text-medisync-purple data-[state=active]:border-b-2 rounded-none border-b-2 border-transparent px-6 py-3"
+              >
+                Scheduled ({scheduledAppointments.length})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="completed"
+                className="data-[state=active]:border-medisync-purple data-[state=active]:text-medisync-purple data-[state=active]:border-b-2 rounded-none border-b-2 border-transparent px-6 py-3"
+              >
+                Completed ({completedAppointments.length})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="cancelled"
+                className="data-[state=active]:border-medisync-purple data-[state=active]:text-medisync-purple data-[state=active]:border-b-2 rounded-none border-b-2 border-transparent px-6 py-3"
+              >
+                Cancelled ({cancelledAppointments.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="scheduled" className="mt-4">
             <AppointmentList 
               appointments={scheduledAppointments} 
               onUpdateStatus={openUpdateDialog} 
               onManageProcesses={openProcessDialog}
+              status="scheduled"
             />
           </TabsContent>
-          
           <TabsContent value="completed" className="mt-4">
             <AppointmentList 
               appointments={completedAppointments} 
               onUpdateStatus={openUpdateDialog} 
               onManageProcesses={openProcessDialog}
+              status="completed"
             />
           </TabsContent>
-          
           <TabsContent value="cancelled" className="mt-4">
             <AppointmentList 
               appointments={cancelledAppointments} 
               onUpdateStatus={openUpdateDialog} 
               onManageProcesses={openProcessDialog}
+              status="cancelled"
             />
           </TabsContent>
         </Tabs>
-
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Update Appointment Status</DialogTitle>
+              <DialogTitle className="text-xl text-medisync-dark-purple">Update Appointment Status</DialogTitle>
               <DialogDescription>
                 Change the status of this appointment.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="my-4">
-              <p className="mb-2">Appointment Date:</p>
-              <p className="font-medium">
-                {selectedAppointment && format(new Date(selectedAppointment.startTime), 'PPP')}
-              </p>
-              <p className="mb-4 text-sm text-muted-foreground">
-                {selectedAppointment && format(new Date(selectedAppointment.startTime), 'h:mm a')} - 
-                {selectedAppointment && format(new Date(selectedAppointment.endTime), 'h:mm a')}
-              </p>
-              
-              <p className="mb-2">Current Status: <span className="font-medium">{selectedAppointment?.status}</span></p>
-              
-              <div className="mt-4">
-                <p className="mb-2">New Status:</p>
+            <div className="my-4 space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-500">Appointment Date:</p>
+                <p className="font-medium">
+                  {selectedAppointment && format(new Date(selectedAppointment.startTime), 'EEEE, MMMM d, yyyy')}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-500">Time:</p>
+                <p className="text-gray-700">
+                  {selectedAppointment && format(new Date(selectedAppointment.startTime), 'h:mm a')} - 
+                  {selectedAppointment && format(new Date(selectedAppointment.endTime), 'h:mm a')}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-500">Current Status:</p>
+                <p className="font-medium">
+                  <span className={getStatusBadgeClass(selectedAppointment?.status || '')}>
+                    {selectedAppointment?.status.charAt(0).toUpperCase() + (selectedAppointment?.status.slice(1) || '')}
+                  </span>
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">New Status:</p>
                 <Select value={newStatus} onValueChange={(value: any) => setNewStatus(value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -337,105 +341,133 @@ const AppointmentManagement = () => {
                 </Select>
               </div>
             </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleUpdateStatus} disabled={updateAppointmentMutation.isPending}>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateStatus} 
+                disabled={updateAppointmentMutation.isPending}
+                className="bg-medisync-purple hover:bg-medisync-purple-dark text-white"
+              >
                 {updateAppointmentMutation.isPending ? "Updating..." : "Update Status"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        {/* New Process Management Dialog */}
+        {/* Process Management Dialog */}
         <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Manage Medical Processes</DialogTitle>
+              <DialogTitle className="text-xl text-medisync-dark-purple">Medical Processes</DialogTitle>
               <DialogDescription>
                 Add and manage medical processes for this appointment.
               </DialogDescription>
             </DialogHeader>
-
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Add New Process Form */}
-              <div className="border p-4 rounded-lg">
-                <h3 className="font-medium mb-4">Add New Process</h3>
+              <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                <h3 className="text-lg font-medium text-medisync-dark-purple mb-4">Add New Medical Process</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium">Process Name</label>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Process Name</label>
                     <Input
                       value={newProcess.processName}
                       onChange={(e) => setNewProcess(prev => ({ ...prev, processName: e.target.value }))}
                       placeholder="Enter process name"
+                      className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Description</label>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Description</label>
                     <Textarea
                       value={newProcess.processDescription}
                       onChange={(e) => setNewProcess(prev => ({ ...prev, processDescription: e.target.value }))}
                       placeholder="Enter process description"
+                      className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                      rows={3}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Amount ($)</label>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Amount ($)</label>
                     <Input
                       type="number"
                       value={newProcess.amount}
                       onChange={(e) => setNewProcess(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
                       placeholder="Enter amount"
+                      className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
                     />
                   </div>
                   <Button 
                     onClick={handleCreateProcess}
                     disabled={createProcessMutation.isPending}
-                    className="w-full"
+                    className="w-full bg-medisync-purple hover:bg-medisync-purple-dark text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Process
+                    {createProcessMutation.isPending ? "Adding..." : "Add Process"}
                   </Button>
                 </div>
               </div>
-
               {/* Existing Processes List */}
-              <div className="border p-4 rounded-lg">
-                <h3 className="font-medium mb-4">Existing Processes</h3>
+              <div className="border p-5 rounded-lg">
+                <h3 className="text-lg font-medium text-medisync-dark-purple mb-4">Existing Processes</h3>
                 <div className="space-y-4">
-                  {processes?.map((process: Process) => (
-                    <div key={process.processid} className="border p-3 rounded-md">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">{process.processName}</h4>
-                          <p className="text-sm text-muted-foreground">{process.processDescription}</p>
-                          <p className="text-sm mt-2">Amount: ${process.amount}</p>
-                          <p className="text-sm">Payment Status: {process.paymentStatus}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Select
-                            value={process.status}
-                            onValueChange={(value) => handleUpdateProcessStatus(process.processid, value)}
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Scheduled">Scheduled</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                              <SelectItem value="Cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
+                  {processes && processes.length > 0 ? (
+                    processes.map((process: Process) => (
+                      <div key={process.processid} className="bg-white p-4 rounded-md border shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-medisync-dark-purple">{process.processName}</h4>
+                              <span className={getStatusBadgeClass(process.status)}>
+                                {process.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">{process.processDescription}</p>
+                            <div className="flex gap-4 mt-2">
+                              <div>
+                                <p className="text-xs text-gray-500">Amount</p>
+                                <p className="font-medium">${process.amount}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500">Payment Status</p>
+                                <p className="font-medium">{process.paymentStatus}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <Select
+                              value={process.status}
+                              onValueChange={(value) => handleUpdateProcessStatus(process.processid, value)}
+                            >
+                              <SelectTrigger className="w-[140px] border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Scheduled">Scheduled</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Completed">Completed</SelectItem>
+                                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">
+                      No processes found for this appointment.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
-
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsProcessDialogOpen(false)}>
+              <Button 
+                variant="outline"
+                onClick={() => setIsProcessDialogOpen(false)}
+                className="border-medisync-purple text-medisync-purple hover:bg-medisync-purple/5"
+              >
                 Close
               </Button>
             </DialogFooter>
@@ -450,16 +482,25 @@ interface AppointmentListProps {
   appointments: Appointment[];
   onUpdateStatus: (appointment: Appointment) => void;
   onManageProcesses: (appointment: Appointment) => void;
+  status: string;
 }
 
-const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses }: AppointmentListProps) => {
+const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses, status }: AppointmentListProps) => {
   if (appointments.length === 0) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center p-4 text-amber-500">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            <p>No appointments found in this category.</p>
+      <Card className="border border-gray-100 shadow-sm bg-white">
+        <CardContent className="pt-6 pb-8">
+          <div className="flex flex-col items-center justify-center py-10 text-amber-500">
+            <AlertCircle className="h-12 w-12 mb-4" />
+            <p className="text-lg font-medium text-center text-amber-600">No {status} appointments found</p>
+            <p className="text-gray-500 text-center mt-2">
+              {status === 'scheduled' ? 
+                'You currently have no scheduled appointments.' : 
+                status === 'completed' ?
+                'You have no completed appointments in the system.' :
+                'You have no cancelled appointments in the system.'
+              }
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -467,49 +508,45 @@ const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses }: Ap
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Appointments</CardTitle>
+    <Card className="border border-gray-100 shadow-sm bg-white">
+      <CardHeader className="pb-3 border-b">
+        <CardTitle className="text-xl text-medisync-dark-purple">{capitalize(status)} Appointments</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="space-y-4">
           {appointments.map((appointment) => (
-            <div key={appointment.appointmentID} 
-                className="p-4 border rounded-md flex flex-col sm:flex-row justify-between">
-              <div>
-                <p className="font-medium">Patient ID: {appointment.patientID}</p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(appointment.startTime), 'PPP')}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(appointment.startTime), 'h:mm a')} - 
-                  {format(new Date(appointment.endTime), 'h:mm a')}
-                </p>
-                <p className="text-sm mt-2">
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                    appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                    appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {appointment.status}
-                  </span>
-                </p>
-              </div>
-              <div className="mt-4 sm:mt-0 flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full sm:w-auto"
-                  onClick={() => onUpdateStatus(appointment)}
-                >
-                  Update Status
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  className="w-full sm:w-auto"
-                  onClick={() => onManageProcesses(appointment)}
-                >
-                  Manage Processes
-                </Button>
+            <div 
+              key={appointment.appointmentID} 
+              className="p-5 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all bg-white hover:border-medisync-purple/20"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <h3 className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientID}</h3>
+                  </div>
+                  <div className="flex items-center text-gray-500 text-sm">
+                    {format(new Date(appointment.startTime), 'EEEE, MMMM d, yyyy')}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <span className="font-medium">Time: </span>
+                    {format(new Date(appointment.startTime), 'h:mm a')} - {format(new Date(appointment.endTime), 'h:mm a')}
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="border-medisync-purple text-medisync-purple hover:bg-medisync-purple/5"
+                    onClick={() => onUpdateStatus(appointment)}
+                  >
+                    Update Status
+                  </Button>
+                  <Button 
+                    className="bg-medisync-purple hover:bg-medisync-purple-dark text-white"
+                    onClick={() => onManageProcesses(appointment)}
+                  >
+                    Manage Processes
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
