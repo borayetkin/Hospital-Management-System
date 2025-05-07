@@ -149,4 +149,17 @@ async def update_process_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update process status: {str(e)}"
-        ) 
+        )
+
+@router.get("/appointment/{appointment_id}", response_model=List[ProcessResponse])
+async def get_processes_by_appointment(
+    appointment_id: int,
+    current_user = Depends(get_current_user)
+):
+    """Get all processes for a specific appointment"""
+    # You may want to restrict this to doctors/staff or the patient
+    processes = execute_query(
+        GET_PROCESSES_BY_APPOINTMENT,
+        (appointment_id,)
+    )
+    return processes 

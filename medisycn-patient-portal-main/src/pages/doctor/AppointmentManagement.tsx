@@ -127,7 +127,7 @@ const AppointmentManagement = () => {
     queryKey: ['appointmentProcesses', selectedAppointment?.appointmentID],
     queryFn: () => {
       if (!selectedAppointment) return Promise.resolve([]);
-      return fetch(`http://localhost:8000/api/v1/processes/doctor/patient/${selectedAppointment.patientID}`, {
+      return fetch(`http://localhost:8000/api/v1/processes/appointment/${selectedAppointment.appointmentID}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -357,112 +357,114 @@ const AppointmentManagement = () => {
         </Dialog>
         {/* Process Management Dialog */}
         <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-xl text-medisync-dark-purple">Medical Processes</DialogTitle>
               <DialogDescription>
                 Add and manage medical processes for this appointment.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6">
-              {/* Add New Process Form */}
-              <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
-                <h3 className="text-lg font-medium text-medisync-dark-purple mb-4">Add New Medical Process</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Process Name</label>
-                    <Input
-                      value={newProcess.processName}
-                      onChange={(e) => setNewProcess(prev => ({ ...prev, processName: e.target.value }))}
-                      placeholder="Enter process name"
-                      className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
-                    />
+            <div className="flex-1 overflow-y-auto pr-2">
+              <div className="space-y-4">
+                {/* Add New Process Form */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="text-lg font-medium text-medisync-dark-purple mb-3">Add New Medical Process</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Process Name</label>
+                      <Input
+                        value={newProcess.processName}
+                        onChange={(e) => setNewProcess(prev => ({ ...prev, processName: e.target.value }))}
+                        placeholder="Enter process name"
+                        className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Description</label>
+                      <Textarea
+                        value={newProcess.processDescription}
+                        onChange={(e) => setNewProcess(prev => ({ ...prev, processDescription: e.target.value }))}
+                        placeholder="Enter process description"
+                        className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Amount ($)</label>
+                      <Input
+                        type="number"
+                        value={newProcess.amount}
+                        onChange={(e) => setNewProcess(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                        placeholder="Enter amount"
+                        className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleCreateProcess}
+                      disabled={createProcessMutation.isPending}
+                      className="w-full bg-medisync-purple hover:bg-medisync-purple-dark text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {createProcessMutation.isPending ? "Adding..." : "Add Process"}
+                    </Button>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Description</label>
-                    <Textarea
-                      value={newProcess.processDescription}
-                      onChange={(e) => setNewProcess(prev => ({ ...prev, processDescription: e.target.value }))}
-                      placeholder="Enter process description"
-                      className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Amount ($)</label>
-                    <Input
-                      type="number"
-                      value={newProcess.amount}
-                      onChange={(e) => setNewProcess(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
-                      placeholder="Enter amount"
-                      className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleCreateProcess}
-                    disabled={createProcessMutation.isPending}
-                    className="w-full bg-medisync-purple hover:bg-medisync-purple-dark text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {createProcessMutation.isPending ? "Adding..." : "Add Process"}
-                  </Button>
                 </div>
-              </div>
-              {/* Existing Processes List */}
-              <div className="border p-5 rounded-lg">
-                <h3 className="text-lg font-medium text-medisync-dark-purple mb-4">Existing Processes</h3>
-                <div className="space-y-4">
-                  {processes && processes.length > 0 ? (
-                    processes.map((process: Process) => (
-                      <div key={process.processid} className="bg-white p-4 rounded-md border shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-medisync-dark-purple">{process.processName}</h4>
-                              <span className={getStatusBadgeClass(process.status)}>
-                                {process.status}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600">{process.processDescription}</p>
-                            <div className="flex gap-4 mt-2">
-                              <div>
-                                <p className="text-xs text-gray-500">Amount</p>
-                                <p className="font-medium">${process.amount}</p>
+                {/* Existing Processes List */}
+                <div className="border p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-medisync-dark-purple mb-3">Existing Processes</h3>
+                  <div className="space-y-3">
+                    {processes && processes.length > 0 ? (
+                      processes.map((process: Process) => (
+                        <div key={process.processid} className="bg-white p-3 rounded-md border shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium text-medisync-dark-purple">{process.processName}</h4>
+                                <span className={getStatusBadgeClass(process.status)}>
+                                  {process.status}
+                                </span>
                               </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Payment Status</p>
-                                <p className="font-medium">{process.paymentStatus}</p>
+                              <p className="text-sm text-gray-600">{process.processDescription}</p>
+                              <div className="flex gap-4 mt-2">
+                                <div>
+                                  <p className="text-xs text-gray-500">Amount</p>
+                                  <p className="font-medium">${process.amount}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Payment Status</p>
+                                  <p className="font-medium">{process.paymentStatus}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="ml-4">
-                            <Select
-                              value={process.status}
-                              onValueChange={(value) => handleUpdateProcessStatus(process.processid, value)}
-                            >
-                              <SelectTrigger className="w-[140px] border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple">
-                                <SelectValue placeholder="Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Scheduled">Scheduled</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Completed">Completed</SelectItem>
-                                <SelectItem value="Cancelled">Cancelled</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="ml-4">
+                              <Select
+                                value={process.status}
+                                onValueChange={(value) => handleUpdateProcessStatus(process.processid, value)}
+                              >
+                                <SelectTrigger className="w-[140px] border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple">
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
+                                  <SelectItem value="Completed">Completed</SelectItem>
+                                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        No processes found for this appointment.
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-gray-500">
-                      No processes found for this appointment.
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="mt-4">
               <Button 
                 variant="outline"
                 onClick={() => setIsProcessDialogOpen(false)}

@@ -84,4 +84,17 @@ UPDATE PatientStatistics
 SET totalProcesses = totalProcesses + 1
 WHERE patientID = %s
 AND reportDate = CURRENT_DATE
+"""
+
+# Get processes by appointment
+GET_PROCESSES_BY_APPOINTMENT = """
+SELECT 
+    processid,
+    processname AS "processName",
+    processdescription AS "processDescription",
+    status,
+    appointmentid
+FROM Process
+WHERE appointmentid = %s
+ORDER BY processid DESC
 """ 
