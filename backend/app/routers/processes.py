@@ -5,6 +5,7 @@ from ..utils.auth import get_current_user
 from ..database import execute_query, execute_transaction
 from ..models.process_queries import *
 from ..schemas.process import ProcessCreate, ProcessResponse, ProcessStatusUpdate
+import json
 
 router = APIRouter(prefix="/processes", tags=["Processes"])
 
@@ -157,9 +158,125 @@ async def get_processes_by_appointment(
     current_user = Depends(get_current_user)
 ):
     """Get all processes for a specific appointment"""
-    # You may want to restrict this to doctors/staff or the patient
     processes = execute_query(
         GET_PROCESSES_BY_APPOINTMENT,
         (appointment_id,)
     )
-    return processes 
+    for proc in processes:
+        if proc.get("billing") and isinstance(proc["billing"], str):
+            proc["billing"] = json.loads(proc["billing"])
+    print("Processes returned from SQL:", processes)
+    return processes
+
+@router.post("/{process_id}/pay", response_model=ProcessResponse)
+async def pay_for_process(
+    process_id: int,
+    current_user = Depends(get_current_user)
+):
+    """Pay for a medical process"""
+    if current_user["role"] != "Patient":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only patients can make payments"
+        )
+    
+    try:
+        # First, get the appointment ID for this process
+        appointment_result = execute_query(
+            "SELECT appointmentid FROM Process WHERE processid = %s",
+            (process_id,)
+        )
+        if not appointment_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment not found for this process"
+            )
+        appointment_id = appointment_result[0]["appointmentid"]
+
+        # First check if the process exists and get its details
+        process_check = execute_query("""
+            SELECT b.amount, b.paymentStatus, a.patientid, pa.balance
+            FROM Billing b
+            JOIN Process p ON b.processid = p.processid
+            JOIN Appointment a ON p.appointmentid = a.appointmentid
+            JOIN Patients pa ON a.patientid = pa.patientid
+            WHERE b.processid = %s
+        """, (process_id,))
+        
+        if not process_check:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Process not found"
+            )
+            
+        process_info = process_check[0]
+        
+        # Check if already paid
+        if process_info["paymentstatus"] == "Paid":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This process has already been paid"
+            )
+            
+        # Check if sufficient balance
+        if process_info["balance"] < process_info["amount"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient balance. Required: ${process_info['amount']}, Available: ${process_info['balance']}"
+            )
+        
+        # Update the billing status
+        payment_result = execute_query(
+            UPDATE_PROCESS_PAYMENT,
+            (process_id, process_id)
+        )
+        
+        if not payment_result:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Payment failed. Please try again."
+            )
+        
+        # Get the amount and patient ID from the payment result
+        amount = payment_result[0]["amount"]
+        patient_id = payment_result[0]["patientid"]
+        
+        # Deduct the amount from patient's balance
+        balance_result = execute_query(
+            DEDUCT_PROCESS_PAYMENT,
+            (amount, patient_id)
+        )
+        
+        if not balance_result:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update patient balance"
+            )
+        
+        # Get the updated process with all details
+        updated_process = execute_query(
+            GET_PROCESSES_BY_APPOINTMENT,
+            (appointment_id,)
+        )
+        
+        if not updated_process:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Process not found after payment"
+            )
+        
+        # Parse billing JSON if needed
+        for proc in updated_process:
+            if proc.get("billing") and isinstance(proc["billing"], str):
+                proc["billing"] = json.loads(proc["billing"])
+        
+        return updated_process[0]
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Payment error: {str(e)}")  # Add logging
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process payment: {str(e)}"
+        ) 

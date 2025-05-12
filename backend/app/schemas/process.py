@@ -14,13 +14,17 @@ class ProcessCreate(ProcessBase):
 class ProcessStatusUpdate(BaseModel):
     status: str
 
-class ProcessResponse(ProcessBase):
+class BillingResponse(BaseModel):
+    amount: float
+    paymentStatus: str
+    billingDate: Optional[datetime]
+
+class ProcessResponse(BaseModel):
     processid: int
+    processName: str
+    processDescription: str
     status: str
-    doctor_name: Optional[str] = None
-    process_date: Optional[datetime] = None
-    amount: Optional[float] = None
-    paymentStatus: Optional[str] = None
+    billing: Optional[BillingResponse]
 
     class Config:
         from_attributes = True 
