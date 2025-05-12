@@ -162,4 +162,5 @@ async def get_processes_by_appointment(
         GET_PROCESSES_BY_APPOINTMENT,
         (appointment_id,)
     )
+    print(processes)
     return processes 

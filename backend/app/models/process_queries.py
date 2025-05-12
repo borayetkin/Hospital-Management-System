@@ -89,12 +89,18 @@ AND reportDate = CURRENT_DATE
 # Get processes by appointment
 GET_PROCESSES_BY_APPOINTMENT = """
 SELECT 
-    processid,
-    processname AS "processName",
-    processdescription AS "processDescription",
-    status,
-    appointmentid
-FROM Process
-WHERE appointmentid = %s
-ORDER BY processid DESC
+    pr.processid,
+    pr.processname AS "processName",
+    pr.processdescription AS "processDescription",
+    pr.status,
+    a.appointmentid,
+    b.amount,
+    b.paymentstatus AS "paymentStatus",
+    u.name AS "doctor_name"
+FROM Process pr
+JOIN Billing b ON pr.processid = b.processid
+JOIN Appointment a ON pr.appointmentid = a.appointmentid
+JOIN "User" u ON a.doctorID = u.userID
+WHERE a.appointmentid = %s
+ORDER BY pr.processid DESC
 """ 
