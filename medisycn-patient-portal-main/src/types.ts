@@ -3,19 +3,27 @@ export interface PatientProfile {
   name: string;
   email: string;
   dob: string;
+  balance?: number;
 }
 
 export interface Appointment {
   appointmentid: number;
   patientid: number;
-  doctorid: number;
-  doctorname: string;
-  starttime: string;
-  endtime: string;
+  doctorID: number;
+  doctorName: string;
+  startTime: string;
+  endTime: string;
   status: string;
   rating: number | null;
   review: string | null;
   specialization: string | null;
+  processes?: Process[];
+}
+
+export interface Billing {
+  amount: number;
+  paymentStatus: string;
+  billingDate?: string;
 }
 
 export interface Process {
@@ -23,8 +31,5 @@ export interface Process {
   processName: string;
   processDescription: string;
   status: string;
-  doctor_name: string;
-  process_date: string;
-  amount: number;
-  paymentStatus: string | null;
+  billing?: Billing;
 } 

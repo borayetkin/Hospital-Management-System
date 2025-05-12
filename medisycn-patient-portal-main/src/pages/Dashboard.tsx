@@ -82,7 +82,7 @@ const Dashboard = () => {
         
         // Update appointments list locally
         setAppointments(appointments.map(appointment => 
-          appointment.appointmentID === appointmentId 
+          appointment.appointmentid === appointmentId 
             ? { ...appointment, status: 'cancelled' as const } 
             : appointment
         ));
@@ -102,6 +102,53 @@ const Dashboard = () => {
           variant: "destructive"
         });
       }
+    }
+  };
+
+  const handlePayment = async (processId: number, amount: number) => {
+    try {
+      // Call the API to process the payment
+      const response = await fetch(`http://localhost:8000/api/v1/processes/${processId}/pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to process payment');
+      }
+      
+      toast({
+        title: "Payment Successful",
+        description: "Your payment has been processed successfully",
+      });
+      
+      // Refresh both appointments and profile data
+      try {
+        const [appointmentsData, profileData] = await Promise.all([
+          patientApi.getAppointments(),
+          patientApi.getProfile()
+        ]);
+        setAppointments(appointmentsData);
+        setProfile(profileData);
+      } catch (refreshError) {
+        console.error('Error refreshing data:', refreshError);
+        toast({
+          title: "Warning",
+          description: "Payment successful but failed to refresh data. Please refresh the page.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      toast({
+        title: "Payment Failed",
+        description: error instanceof Error ? error.message : "Failed to process your payment",
+        variant: "destructive"
+      });
     }
   };
 
@@ -181,7 +228,7 @@ const Dashboard = () => {
             <Card className="p-6">
               <h2 className="text-lg font-semibold mb-4">Account Balance</h2>
               <div className="text-3xl font-bold text-medisync-purple-dark">
-                ${profile.balance.toFixed(2)}
+                ${profile.balance?.toFixed(2) || '0.00'}
               </div>
               <div className="mt-4">
                 <Button 
@@ -255,9 +302,10 @@ const Dashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {upcomingAppointments.map(appointment => (
                       <AppointmentCard
-                        key={appointment.appointmentID}
+                        key={appointment.appointmentid}
                         appointment={appointment}
                         onCancel={handleCancelAppointment}
+                        onPay={handlePayment}
                       />
                     ))}
                   </div>
@@ -271,9 +319,10 @@ const Dashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pastAppointments.slice(0, 3).map(appointment => (
                       <AppointmentCard
-                        key={appointment.appointmentID}
+                        key={appointment.appointmentid}
                         appointment={appointment}
                         onReview={appointment.status === 'completed' && !appointment.rating ? handleReviewAppointment : undefined}
+                        onPay={handlePayment}
                       />
                     ))}
                   </div>

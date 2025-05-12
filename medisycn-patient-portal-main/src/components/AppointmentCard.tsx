@@ -2,18 +2,26 @@ import { formatDistanceToNow, format, parseISO } from 'date-fns';
 import { Appointment } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface AppointmentCardProps {
   appointment: Appointment;
   onReview?: (appointmentId: number) => void;
   onCancel?: (appointmentId: number) => void;
+  onPay?: (processId: number, amount: number) => void;
 }
 
-const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardProps) => {
+const AppointmentCard = ({ appointment, onReview, onCancel, onPay }: AppointmentCardProps) => {
+  const [showProcesses, setShowProcesses] = useState(false);
   const startTime = parseISO(appointment.startTime);
   const endTime = parseISO(appointment.endTime);
+  
+  console.log('Appointment data:', appointment);
+  console.log('Processes:', appointment.processes);
+  console.log('Show processes state:', showProcesses);
+  console.log('Billing:', appointment.processes?.[0]?.billing);
   
   // Determine if appointment is in the future
   const isUpcoming = startTime > new Date();
@@ -24,7 +32,7 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
   
   // Set status badge color
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'completed':
@@ -45,7 +53,7 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
             <p className="text-sm text-gray-500 mt-1">
               {isUpcoming 
                 ? `Upcoming: ${formatDistanceToNow(startTime, { addSuffix: true })}` 
-                : `${formatDistanceToNow(startTime, { addSuffix: true })}`
+                : `${formatDistanceToNow(startTime, { addSuffix: true })}` 
               }
             </p>
           </div>
@@ -87,13 +95,66 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
             )}
           </div>
         )}
+        
+        {appointment.processes && appointment.processes.length > 0 && (
+          <div className="mt-4">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between text-medisync-purple"
+              onClick={() => setShowProcesses(!showProcesses)}
+            >
+              <span>Processes</span>
+              {showProcesses ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            
+            {showProcesses && (
+              <div className="mt-2 space-y-2">
+                {appointment.processes.map((process) => (
+                  <div key={process.processid} className="bg-white p-3 rounded-md border shadow-sm">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-medisync-dark-purple">{process.processName ?? '-'}</h4>
+                        <Badge className={getStatusColor(process.status)}>
+                          {process.status}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Description: </span>
+                        <span>{process.processDescription ?? '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="text-sm">
+                          <span className="font-medium">Amount: </span>
+                          <span className="text-medisync-purple">{process.billing?.amount ?? '-'}</span>
+                        </div>
+                        {process.billing?.paymentStatus === 'Pending' && onPay && (
+                          <Button
+                            size="sm"
+                            onClick={() => onPay(process.processid, process.billing.amount)}
+                            className="bg-medisync-purple hover:bg-medisync-purple/90"
+                          >
+                            Pay Now
+                          </Button>
+                        )}
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium">Payment Status: </span>
+                        <span>{process.billing?.paymentStatus ?? '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
       
       <CardFooter className="p-4 pt-0 flex justify-end gap-2">
         {appointment.status === 'scheduled' && onCancel && (
           <Button 
             variant="outline" 
-            onClick={() => onCancel(appointment.appointmentID)}
+            onClick={() => onCancel(appointment.appointmentid)}
             size="sm"
             className="text-red-600 border-red-200 hover:bg-red-50"
           >
@@ -103,7 +164,7 @@ const AppointmentCard = ({ appointment, onReview, onCancel }: AppointmentCardPro
         {appointment.status === 'completed' && !appointment.rating && onReview && (
           <Button 
             variant="outline"
-            onClick={() => onReview(appointment.appointmentID)}
+            onClick={() => onReview(appointment.appointmentid)}
             size="sm"
             className="text-medisync-purple border-medisync-purple/30 hover:bg-medisync-purple/10"
           >

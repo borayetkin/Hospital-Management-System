@@ -37,18 +37,35 @@ const transformPatientData = (data: any): PatientProfile => {
 
 // Helper function to convert appointment fields
 const transformAppointmentData = (data: any): Appointment => {
-  return {
-    appointmentID: data.appointmentid || data.appointment_id,
-    patientID: data.patientid || data.patient_id,
-    doctorID: data.doctorid || data.doctor_id,
-    doctorName: data.doctorname || data.doctor_name,
-    startTime: data.starttime || data.start_time,
-    endTime: data.endtime || data.end_time,
-    status: (data.status || '').toLowerCase() as 'scheduled' | 'completed' | 'cancelled',
-    rating: data.rating,
-    review: data.review,
-    specialization: data.specialization
-  };
+  console.log('Raw appointment data:', data);
+  console.log('Raw processes data:', data.processes);
+  
+  const transformed = {
+    appointmentid: data.appointmentid,
+  patientid: data.patientid,
+  doctorID: data.doctorid,
+  doctorName: data.doctorname,
+  startTime: data.starttime,
+  endTime: data.endtime,
+  status: data.status,
+  rating: data.rating,
+  review: data.review,
+  specialization: data.specialization,
+  processes: Array.isArray(data.processes)
+    ? data.processes.map(process => ({
+        processid: process.processid,
+        processName: process.processName,
+        processDescription: process.processDescription,
+        status: process.status,
+        doctor_name: process.doctor_name,
+        process_date: process.process_date,
+        billing: process.billing
+      }))
+    : []
+};
+  
+  console.log('Transformed appointment:', transformed);
+  return transformed;
 };
 
 // Helper function to convert doctor fields
@@ -216,6 +233,7 @@ export const patientApi = {
         let url = `${BASE_URL}/appointments/patient`;
         if (status) url += `?status=${status}`;
         
+        console.log('Fetching appointments from:', url);
         const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
@@ -225,7 +243,11 @@ export const patientApi = {
         }
         
         const data = await response.json();
-        return Array.isArray(data) ? data.map(transformAppointmentData) : [];
+        console.log('Raw API response:', data);
+        
+        const transformedData = Array.isArray(data) ? data.map(transformAppointmentData) : [];
+        console.log('Transformed appointments:', transformedData);
+        return transformedData;
       } catch (apiError) {
         console.error('API error, falling back to mock data:', apiError);
         

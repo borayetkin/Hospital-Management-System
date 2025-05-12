@@ -43,6 +43,7 @@ export interface Appointment {
   rating?: number;
   review?: string;
   specialization?: string;
+  processes?: Process[];
 }
 
 export interface TimeSlot {
@@ -82,10 +83,18 @@ export interface RevenueStats {
 }
 
 export interface Process {
-  processid: number;
+  processID: number;
   processName: string;
   processDescription: string;
   status: string;
-  date: string;
-  price: number;
+  appointmentID: number;
+  billing?: Billing;
+}
+
+export interface Billing {
+  billingID: number;
+  billingDate: string;
+  amount: number;
+  paymentStatus: string;
+  processID: number;
 }

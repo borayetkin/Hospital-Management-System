@@ -1,7 +1,25 @@
 # app/schemas/appointment.py
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+
+class BillingResponse(BaseModel):
+    amount: Optional[float] = None
+    paymentStatus: Optional[str] = None
+    billingDate: Optional[datetime] = None
+
+class ProcessResponse(BaseModel):
+    processid: int = Field(..., alias="processid")
+    processName: str = Field(..., alias="processName")
+    processDescription: Optional[str] = Field(None, alias="processDescription")
+    status: str
+    doctor_name: str
+    process_date: datetime
+    billing: Optional[BillingResponse] = None
+
+    class Config:
+        populate_by_name = True
+        from_attributes = True
 
 class AppointmentCreate(BaseModel):
     doctorID: int
@@ -19,6 +37,7 @@ class AppointmentResponse(BaseModel):
     rating: Optional[float] = None
     review: Optional[str] = None
     specialization: Optional[str] = None
+    processes: List[ProcessResponse] = []
     
     class Config:
         populate_by_name = True

@@ -33,16 +33,23 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 // Transform API response to match frontend format
 const transformAppointmentData = (data: any): Appointment => {
   return {
-    appointmentID: data.appointmentid || data.appointment_id || data.appointmentID,
-    patientID: data.patientid || data.patient_id || data.patientID,
-    doctorID: data.doctorid || data.doctor_id || data.doctorID,
-    doctorName: data.doctorname || data.doctor_name || data.doctorName,
-    startTime: data.starttime || data.start_time || data.startTime,
-    endTime: data.endtime || data.end_time || data.endTime,
+    appointmentid: data.appointmentid || data.appointment_id,
+    patientid: data.patientid || data.patient_id,
+    doctorID: data.doctorid || data.doctor_id,
+    doctorName: data.doctorname || data.doctor_name,
+    startTime: data.starttime || data.start_time,
+    endTime: data.endtime || data.end_time,
     status: (data.status || '').toLowerCase() as 'scheduled' | 'completed' | 'cancelled',
     rating: data.rating,
     review: data.review,
-    specialization: data.specialization
+    specialization: data.specialization,
+    processes: data.processes?.map((process: any) => ({
+      processid: process.processid,
+      processName: process.processName,
+      processDescription: process.processDescription,
+      status: process.status,
+      billing: process.billing
+    })) || []
   };
 };
 
@@ -124,10 +131,10 @@ const AppointmentManagement = () => {
   });
 
   const { data: processes, refetch: refetchProcesses } = useQuery({
-    queryKey: ['appointmentProcesses', selectedAppointment?.appointmentID],
+    queryKey: ['appointmentProcesses', selectedAppointment?.appointmentid],
     queryFn: () => {
       if (!selectedAppointment) return Promise.resolve([]);
-      return fetch(`http://localhost:8000/api/v1/processes/appointment/${selectedAppointment.appointmentID}`, {
+      return fetch(`http://localhost:8000/api/v1/processes/appointment/${selectedAppointment.appointmentid}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -147,7 +154,7 @@ const AppointmentManagement = () => {
         },
         body: JSON.stringify({
           ...processData,
-          appointmentID: selectedAppointment.appointmentID
+          appointmentID: selectedAppointment.appointmentid
         })
       }).then(res => res.json());
     },
@@ -198,14 +205,14 @@ const AppointmentManagement = () => {
 
   const openUpdateDialog = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
-    setNewStatus(appointment.status);
+    setNewStatus(appointment.status as 'scheduled' | 'completed' | 'cancelled');
     setIsDialogOpen(true);
   };
 
   const handleUpdateStatus = () => {
     if (selectedAppointment) {
       updateAppointmentMutation.mutate({
-        appointmentId: selectedAppointment.appointmentID,
+        appointmentId: selectedAppointment.appointmentid,
         status: newStatus
       });
     }
@@ -222,6 +229,35 @@ const AppointmentManagement = () => {
 
   const handleUpdateProcessStatus = (processId: number, status: string) => {
     updateProcessStatusMutation.mutate({ processId, status });
+  };
+
+  const handlePayment = async (processId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/processes/${processId}/pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Payment failed');
+      }
+
+      toast({
+        title: "Payment successful",
+        description: "The process payment has been processed successfully.",
+      });
+      
+      refetchProcesses();
+    } catch (error) {
+      toast({
+        title: "Payment failed",
+        description: "There was an error processing the payment. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -425,15 +461,20 @@ const AppointmentManagement = () => {
                                 </span>
                               </div>
                               <p className="text-sm text-gray-600">{process.processDescription}</p>
-                              <div className="flex gap-4 mt-2">
-                                <div>
-                                  <p className="text-xs text-gray-500">Amount</p>
-                                  <p className="font-medium">${process.amount}</p>
+                              <div className="mt-2 flex justify-between items-center">
+                                <div className="text-sm">
+                                  <span className="font-medium">Amount: </span>
+                                  <span className="text-medisync-purple">${process.amount}</span>
                                 </div>
-                                <div>
-                                  <p className="text-xs text-gray-500">Payment Status</p>
-                                  <p className="font-medium">{process.paymentStatus}</p>
-                                </div>
+                                {process.paymentStatus === 'pending' && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handlePayment(process.processid)}
+                                    className="bg-medisync-purple hover:bg-medisync-purple/90"
+                                  >
+                                    Pay Now
+                                  </Button>
+                                )}
                               </div>
                             </div>
                             <div className="ml-4">
@@ -518,13 +559,13 @@ const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses, stat
         <div className="space-y-4">
           {appointments.map((appointment) => (
             <div 
-              key={appointment.appointmentID} 
+              key={appointment.appointmentid} 
               className="p-5 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-all bg-white hover:border-medisync-purple/20"
             >
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <h3 className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientID}</h3>
+                    <h3 className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientid}</h3>
                   </div>
                   <div className="flex items-center text-gray-500 text-sm">
                     {format(new Date(appointment.startTime), 'EEEE, MMMM d, yyyy')}

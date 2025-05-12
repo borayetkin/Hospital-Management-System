@@ -89,18 +89,48 @@ AND reportDate = CURRENT_DATE
 # Get processes by appointment
 GET_PROCESSES_BY_APPOINTMENT = """
 SELECT 
-    pr.processid,
-    pr.processname AS "processName",
-    pr.processdescription AS "processDescription",
-    pr.status,
-    a.appointmentid,
-    b.amount,
-    b.paymentstatus AS "paymentStatus",
-    u.name AS "doctor_name"
-FROM Process pr
-JOIN Billing b ON pr.processid = b.processid
-JOIN Appointment a ON pr.appointmentid = a.appointmentid
-JOIN "User" u ON a.doctorID = u.userID
-WHERE a.appointmentid = %s
-ORDER BY pr.processid DESC
+    p.processid,
+    p.processname AS "processName",
+    p.processdescription AS "processDescription",
+    p.status,
+    json_build_object(
+        'amount', b.amount,
+        'paymentStatus', b.paymentstatus,
+        'billingDate', b.billingdate
+    ) AS billing
+FROM Process p
+LEFT JOIN Billing b ON p.processid = b.processid
+WHERE p.appointmentid = %s
+ORDER BY p.processid DESC
+"""
+
+# Update billing status and patient balance
+UPDATE_PROCESS_PAYMENT = """
+WITH process_info AS (
+    SELECT b.amount, a.patientid
+    FROM Billing b
+    JOIN Process p ON b.processid = p.processid
+    JOIN Appointment a ON p.appointmentid = a.appointmentid
+    WHERE b.processid = %s
+    AND b.paymentStatus = 'Pending'
+    FOR UPDATE
+)
+UPDATE Billing b
+SET paymentStatus = 'Paid'
+FROM process_info pi
+WHERE b.processid = %s
+AND EXISTS (
+    SELECT 1 FROM Patients p
+    WHERE p.patientid = pi.patientid
+    AND p.balance >= pi.amount
+)
+RETURNING b.processid, b.paymentStatus, pi.amount, pi.patientid;
+"""
+
+# Deduct amount from patient balance
+DEDUCT_PROCESS_PAYMENT = """
+UPDATE Patients p
+SET balance = balance - %s
+WHERE p.patientid = %s
+RETURNING p.balance;
 """ 

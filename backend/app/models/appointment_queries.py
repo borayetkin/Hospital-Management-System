@@ -74,12 +74,34 @@ WHERE patientid = %s
 GET_PATIENT_APPOINTMENTS = """
 SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
        a.status, a.rating, a.review, u.name as doctorname,
-       d.specialization
+       d.specialization,
+       COALESCE(
+           json_agg(
+               json_build_object(
+                   'processid', p.processid,
+                   'processName', COALESCE(p.processname, ''),
+                   'processDescription', COALESCE(p.processdescription, ''),
+                   'status', COALESCE(p.status, ''),
+                   'doctor_name', COALESCE(u.name, ''),
+                   'process_date', a.starttime,
+                   'billing', CASE WHEN b.processid IS NOT NULL THEN json_build_object(
+                       'amount', COALESCE(b.amount, 0),
+                       'paymentStatus', COALESCE(b.paymentstatus, 'pending'),
+                       'billingDate', b.billingdate
+                   ) ELSE NULL END
+               )
+           ) FILTER (WHERE p.processid IS NOT NULL),
+           '[]'
+       ) as processes
 FROM Appointment a
 JOIN Doctors d ON a.doctorid = d.employeeid
 JOIN "User" u ON d.employeeid = u.userid
+LEFT JOIN Process p ON a.appointmentid = p.appointmentid
+LEFT JOIN Billing b ON p.processid = b.processid
 WHERE a.patientid = %s
 {status_clause}
+GROUP BY a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+         a.status, a.rating, a.review, u.name, d.specialization
 ORDER BY a.starttime DESC
 """
 
@@ -87,15 +109,37 @@ ORDER BY a.starttime DESC
 GET_DOCTOR_APPOINTMENTS = """
 SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
        a.status, a.rating, a.review, u.name as patientname,
-       d.specialization,u2.name as doctorname
+       d.specialization, u2.name as doctorname,
+       COALESCE(
+           json_agg(
+               json_build_object(
+                   'processid', p.processid,
+                   'processName', COALESCE(p.processname, ''),
+                   'processDescription', COALESCE(p.processdescription, ''),
+                   'status', COALESCE(p.status, ''),
+                   'doctor_name', COALESCE(u2.name, ''),
+                   'process_date', a.starttime,
+                   'billing', CASE WHEN b.processid IS NOT NULL THEN json_build_object(
+                       'amount', COALESCE(b.amount, 0),
+                       'paymentStatus', COALESCE(b.paymentstatus, 'pending'),
+                       'billingDate', b.billingdate
+                   ) ELSE NULL END
+               )
+           ) FILTER (WHERE p.processid IS NOT NULL),
+           '[]'
+       ) as processes
 FROM Appointment a
-JOIN Patients p ON a.patientid = p.patientid
-JOIN "User" u ON p.patientid = u.userid
+JOIN Patients p2 ON a.patientid = p2.patientid
+JOIN "User" u ON p2.patientid = u.userid
 JOIN Doctors d ON a.doctorid = d.employeeid
 JOIN "User" u2 ON d.employeeid = u2.userid
+LEFT JOIN Process p ON a.appointmentid = p.appointmentid
+LEFT JOIN Billing b ON p.processid = b.processid
 WHERE a.doctorid = %s
 {status_clause}
 {time_clause}
+GROUP BY a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+         a.status, a.rating, a.review, u.name, d.specialization, u2.name
 ORDER BY a.starttime {order}
 """
 
@@ -120,9 +164,28 @@ RETURNING appointmentid
 # Get appointment with doctor name and specialization by appointmentid
 GET_APPOINTMENT_WITH_DOCTOR = """
 SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
-       a.status, a.rating, a.review, u.name as doctorname, d.specialization
+       a.status, a.rating, a.review, u.name as doctorname, d.specialization,
+       COALESCE(
+           json_agg(
+               json_build_object(
+                   'processid', p.processid,
+                   'processname', COALESCE(p.processname, ''),
+                   'processdescription', COALESCE(p.processdescription, ''),
+                   'status', COALESCE(p.status, ''),
+                   'doctor_name', COALESCE(u.name, ''),
+                   'process_date', a.starttime,
+                   'amount', COALESCE(b.amount, 0),
+                   'paymentstatus', COALESCE(b.paymentstatus, 'pending')
+               )
+           ) FILTER (WHERE p.processid IS NOT NULL),
+           '[]'
+       ) as processes
 FROM Appointment a
 JOIN Doctors d ON a.doctorid = d.employeeid
 JOIN "User" u ON d.employeeid = u.userid
+LEFT JOIN Process p ON a.appointmentid = p.appointmentid
+LEFT JOIN Billing b ON p.processid = b.processid
 WHERE a.appointmentid = %s
+GROUP BY a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
+         a.status, a.rating, a.review, u.name, d.specialization
 """
