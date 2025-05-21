@@ -39,7 +39,26 @@ async def get_doctor_patient_processes(
         GET_DOCTOR_PATIENT_PROCESSES, 
         (patient_id, current_user["userid"])
     )
-    return processes
+    
+    # Transform the processes to include proper billing structure
+    transformed_processes = []
+    for proc in processes:
+        transformed_proc = {
+            "processid": proc["processid"],
+            "processName": proc["processName"],
+            "processDescription": proc["processDescription"],
+            "status": proc["status"],
+            "process_date": proc["process_date"],
+            "doctor_name": proc["doctor_name"],
+            "billing": {
+                "amount": proc["amount"],
+                "paymentStatus": proc["paymentstatus"],
+                "billingDate": proc["process_date"]  # Using process_date as billing date
+            }
+        }
+        transformed_processes.append(transformed_proc)
+    
+    return transformed_processes
 
 @router.get("/doctor/appointments/{patient_id}")
 async def get_appointments_for_process(

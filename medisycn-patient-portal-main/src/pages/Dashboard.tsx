@@ -154,11 +154,11 @@ const Dashboard = () => {
 
   // Split appointments into upcoming and past
   const upcomingAppointments = appointments.filter(
-    appointment => appointment.status === 'scheduled'
+    appointment => appointment.status.toLowerCase() === 'scheduled'
   );
   
   const pastAppointments = appointments.filter(
-    appointment => appointment.status === 'completed' || appointment.status === 'cancelled'
+    appointment => appointment.status.toLowerCase() === 'completed' || appointment.status.toLowerCase() === 'cancelled'
   );
 
   if (isLoading) {

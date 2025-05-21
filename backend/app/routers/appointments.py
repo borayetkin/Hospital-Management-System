@@ -188,6 +188,7 @@ async def get_doctor_appointments(
     
     if status:
         status_clause = "AND a.status = %s"
+        status = status.lower()
         params.append(status)
     
     if upcoming is not None:
@@ -204,6 +205,7 @@ async def get_doctor_appointments(
     )
     
     appointments = execute_query(formatted_query, params)
+    print(appointments)
     return appointments
 
 @router.put("/{appointment_id}/status", response_model=AppointmentResponse)

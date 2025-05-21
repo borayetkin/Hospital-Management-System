@@ -464,7 +464,7 @@ const AppointmentManagement = () => {
                               <div className="mt-2 flex justify-between items-center">
                                 <div className="text-sm">
                                   <span className="font-medium">Amount: </span>
-                                  <span className="text-medisync-purple">${process.amount}</span>
+                                  <span className="text-medisync-purple">${process.billing.amount}</span>
                                 </div>
                                 {process.paymentStatus === 'pending' && (
                                   <Button

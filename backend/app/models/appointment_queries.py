@@ -52,7 +52,7 @@ WHERE patientid = %s AND balance >= %s
 # Create appointment
 CREATE_APPOINTMENT = """
 INSERT INTO Appointment (status, rating, review, patientid, doctorid, starttime, endtime)
-VALUES ('Scheduled', NULL, NULL, %s, %s, %s, %s)
+VALUES ('scheduled', NULL, NULL, %s, %s, %s, %s)
 RETURNING appointmentid
 """
 
@@ -108,7 +108,7 @@ ORDER BY a.starttime DESC
 # Get doctor appointments
 GET_DOCTOR_APPOINTMENTS = """
 SELECT a.appointmentid, a.patientid, a.doctorid, a.starttime, a.endtime, 
-       a.status, a.rating, a.review, u.name as patientname,
+       LOWER(a.status) as status, a.rating, a.review, u.name as patientname,
        d.specialization, u2.name as doctorname,
        COALESCE(
            json_agg(

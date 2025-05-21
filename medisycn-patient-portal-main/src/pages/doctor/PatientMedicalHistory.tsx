@@ -246,7 +246,7 @@ const PatientMedicalHistory: React.FC = () => {
                             <p className="text-gray-600">{process.processDescription}</p>
                             <div className="text-sm">
                               <span className="text-gray-500">Date: </span>
-                              <span className="font-medium">{process.process_date ? format(new Date(process.process_date), 'PPP') : 'N/A'}</span>
+                              <span className="font-medium">{process.billing.billingDate ? format(new Date(process.billing.billingDate), 'PPP') : 'N/A'}</span>
                             </div>
                           </div>
                           <div className="bg-gray-50 p-4 rounded-lg min-w-[200px]">
@@ -254,12 +254,19 @@ const PatientMedicalHistory: React.FC = () => {
                             <div className="space-y-2">
                               <div className="flex justify-between">
                                 <span className="text-gray-500">Amount:</span>
-                                <span className="font-medium">${process.amount}</span>
+                                <span className="font-medium">${process.billing.amount}</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-500">Status:</span>
-                                <Badge variant="outline" className="font-normal">
-                                  {process.paymentStatus || 'Pending'}
+                                <Badge 
+                                  variant="outline" 
+                                  className={`font-normal ${
+                                    process.billing.paymentStatus.toLowerCase() === 'paid' 
+                                      ? 'bg-green-100 text-green-800 border-green-200' 
+                                      : ''
+                                  }`}
+                                >
+                                  {process.billing.paymentStatus || 'Pending'}
                                 </Badge>
                               </div>
                             </div>

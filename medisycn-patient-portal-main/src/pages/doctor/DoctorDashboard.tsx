@@ -26,7 +26,7 @@ const transformAppointmentData = (data: any): Appointment => {
     doctorName: data.doctorname || data.doctor_name || data.doctorName,
     startTime: data.starttime || data.start_time || data.startTime,
     endTime: data.endtime || data.end_time || data.endTime,
-    status: (data.status || '').toLowerCase() as 'scheduled' | 'completed' | 'cancelled',
+    status: (data.status || '').toLowerCase(),
     rating: data.rating,
     review: data.review,
     specialization: data.specialization
