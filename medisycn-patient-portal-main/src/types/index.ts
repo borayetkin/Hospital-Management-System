@@ -13,19 +13,19 @@ export interface AuthResponse {
 }
 
 export interface PatientProfile {
-  patientID: number;
+  patientid: number;
   name: string;
-  dateOfBirth: string;
+  dob: string;
   email: string;
-  phoneNumber: string;
+  phonenumber: string;
   balance: number;
 }
 
 export interface DoctorProfile {
-  doctorID: number;
+  doctorid: number;
   name: string;
   specialization: string;
-  avgRating: number;
+  rating: number;
   appointmentCount: number;
   experience?: string;
   fee?: number;
@@ -33,12 +33,12 @@ export interface DoctorProfile {
 }
 
 export interface Appointment {
-  appointmentID: number;
-  patientID: number;
-  doctorID: number;
-  doctorName?: string;
-  startTime: string;
-  endTime: string;
+  appointmentid: number;
+  patientid: number;
+  doctorid: number;
+  doctorname?: string;
+  starttime: string;
+  endtime: string;
   status: 'scheduled' | 'completed' | 'cancelled';
   rating?: number;
   review?: string;
@@ -47,8 +47,8 @@ export interface Appointment {
 }
 
 export interface TimeSlot {
-  startTime: string;
-  endTime: string;
+  starttime: string;
+  endtime: string;
 }
 
 export interface DoctorWithAvailability extends DoctorProfile {
@@ -58,43 +58,43 @@ export interface DoctorWithAvailability extends DoctorProfile {
 // Doctor specific types
 export interface DoctorStats {
   appointmentCount: number;
-  avgRating: number;
+  rating: number;
   prescriptionCount: number;
 }
 
 // Admin specific types
 export interface AppointmentStats {
-  totalAppointments: number;
-  scheduledAppointments: number;
-  completedAppointments: number;
-  cancelledAppointments: number;
+  totalappointments: number;
+  scheduledappointments: number;
+  completedappointments: number;
+  cancelledappointments: number;
   period: string;
-  startDate: string;
-  endDate: string;
+  startdate: string;
+  enddate: string;
 }
 
 export interface RevenueStats {
-  totalRevenue: number;
-  billingCount: number;
-  avgBillingAmount: number;
+  totalrevenue: number;
+  billingcount: number;
+  avgbillingamount: number;
   period: string;
-  startDate: string;
-  endDate: string;
+  startdate: string;
+  enddate: string;
 }
 
 export interface Process {
-  processID: number;
-  processName: string;
-  processDescription: string;
+  processid: number;
+  processname: string;
+  processdescription: string;
   status: string;
-  appointmentID: number;
+  appointmentid: number;
   billing?: Billing;
 }
 
 export interface Billing {
-  billingID: number;
-  billingDate: string;
+  billingid: number;
+  billingdate: string;
   amount: number;
-  paymentStatus: string;
-  processID: number;
+  paymentstatus: string;
+  processid: number;
 }

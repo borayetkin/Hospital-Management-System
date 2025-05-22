@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/api';
@@ -19,7 +18,7 @@ const PatientManagement = () => {
   const filteredPatients = patients?.filter(patient => 
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phoneNumber.includes(searchTerm)
+    patient.phonenumber.includes(searchTerm)
   );
 
   return (
@@ -63,12 +62,12 @@ const PatientManagement = () => {
                   </thead>
                   <tbody>
                     {filteredPatients.map((patient) => (
-                      <tr key={patient.patientID} className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-2">{patient.patientID}</td>
+                      <tr key={patient.patientid} className="border-b hover:bg-gray-50">
+                        <td className="py-4 px-2">{patient.patientid}</td>
                         <td className="py-4 px-2">{patient.name}</td>
-                        <td className="py-4 px-2">{patient.dateOfBirth}</td>
+                        <td className="py-4 px-2">{patient.dob}</td>
                         <td className="py-4 px-2">{patient.email}</td>
-                        <td className="py-4 px-2">{patient.phoneNumber}</td>
+                        <td className="py-4 px-2">{patient.phonenumber}</td>
                         <td className="py-4 px-2">${patient.balance.toFixed(2)}</td>
                         <td className="py-4 px-2">
                           <Button variant="outline" size="sm">View Details</Button>

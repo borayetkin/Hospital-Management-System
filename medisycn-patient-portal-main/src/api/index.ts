@@ -736,29 +736,24 @@ export const doctorApi = {
 export const adminApi = {
   getDoctors: async (): Promise<DoctorProfile[]> => {
     try {
-      return await mockApiCall([
-        {
-          doctorID: 101,
-          name: 'Dr. Sarah Johnson',
-          specialization: 'Cardiology',
-          avgRating: 4.8,
-          appointmentCount: 253
-        },
-        {
-          doctorID: 102,
-          name: 'Dr. Mark Williams',
-          specialization: 'Neurology',
-          avgRating: 4.9,
-          appointmentCount: 187
-        },
-        {
-          doctorID: 103,
-          name: 'Dr. Emily Chen',
-          specialization: 'Pediatrics',
-          avgRating: 4.7,
-          appointmentCount: 312
-        }
-      ]);
+      const response = await fetch(`${BASE_URL}/admin/doctors`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch doctors');
+      }
+      
+      const data = await response.json();
+      return data.map((doctor: any) => ({
+        doctorid: doctor.employeeid,
+        name: doctor.name,
+        specialization: doctor.specialization,
+        rating: doctor.rating || 0,
+        appointmentCount: doctor.appointmentcount || 0,
+        experience: doctor.experience || 'N/A',
+        fee: doctor.fee || 0
+      }));
     } catch (error) {
       console.error('Get all doctors error:', error);
       throw error;
@@ -767,65 +762,80 @@ export const adminApi = {
 
   getPatients: async (): Promise<PatientProfile[]> => {
     try {
-      return await mockApiCall([
-        {
-          patientID: 1,
-          name: 'John Doe',
-          dateOfBirth: '1990-01-01',
-          email: 'john.doe@example.com',
-          phoneNumber: '123-456-7890',
-          balance: 500
-        },
-        {
-          patientID: 2,
-          name: 'Jane Smith',
-          dateOfBirth: '1985-05-15',
-          email: 'jane.smith@example.com',
-          phoneNumber: '234-567-8901',
-          balance: 350
-        },
-        {
-          patientID: 3,
-          name: 'Michael Brown',
-          dateOfBirth: '1978-08-22',
-          email: 'michael.brown@example.com',
-          phoneNumber: '345-678-9012',
-          balance: 200
-        }
-      ]);
+      const response = await fetch(`${BASE_URL}/admin/patients`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch patients');
+      }
+      
+      const data = await response.json();
+      return data.map((patient: any) => ({
+        patientid: patient.patientid,
+        name: patient.name,
+        dob: patient.dob,
+        email: patient.email,
+        phonenumber: patient.phonenumber,
+        balance: patient.balance || 0
+      }));
     } catch (error) {
       console.error('Get all patients error:', error);
       throw error;
     }
   },
 
-  getAppointmentStats: async (period: 'week' | 'month' | 'quarter' | 'year'): Promise<any> => {
+  getAppointmentStats: async (period: 'week' | 'month' | 'quarter' | 'year'): Promise<AppointmentStats> => {
     try {
-      return await mockApiCall({
-        totalAppointments: 325,
-        scheduledAppointments: 145,
-        completedAppointments: 164,
-        cancelledAppointments: 16,
-        period: period,
-        startDate: '2023-01-01',
-        endDate: '2023-12-31'
+      console.log('Fetching appointment stats for period:', period);
+      const response = await fetch(`${BASE_URL}/admin/stats/appointments?period=${period}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointment statistics');
+      }
+      
+      const data = await response.json();
+      console.log('Raw appointment stats response:', data);
+      
+      const stats = {
+        totalappointments: data.totalappointments || 0,
+        scheduledappointments: data.scheduledappointments || 0,
+        completedappointments: data.completedappointments || 0,
+        cancelledappointments: data.cancelledappointments || 0,
+        period: data.period,
+        startdate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
+        enddate: data.endDate ? new Date(data.endDate).toISOString() : undefined
+      };
+      
+      console.log('Processed appointment stats:', stats);
+      return stats;
     } catch (error) {
       console.error('Get appointment stats error:', error);
       throw error;
     }
   },
 
-  getRevenueStats: async (period: 'week' | 'month' | 'quarter' | 'year'): Promise<any> => {
+  getRevenueStats: async (period: 'week' | 'month' | 'quarter' | 'year'): Promise<RevenueStats> => {
     try {
-      return await mockApiCall({
-        totalRevenue: 87500,
-        billingCount: 164,
-        avgBillingAmount: 533.54,
-        period: period,
-        startDate: '2023-01-01',
-        endDate: '2023-12-31'
+      const response = await fetch(`${BASE_URL}/admin/stats/revenue?period=${period}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch revenue statistics');
+      }
+      
+      const data = await response.json();
+      return {
+        totalrevenue: data.totalrevenue || 0,
+        billingcount: data.billingcount || 0,
+        avgbillingamount: data.avgbillingamount || 0,
+        period: data.period,
+        startdate: data.startdate,
+        enddate: data.enddate
+      };
     } catch (error) {
       console.error('Get revenue stats error:', error);
       throw error;

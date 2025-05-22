@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/api';
@@ -61,14 +60,14 @@ const DoctorManagement = () => {
                   </thead>
                   <tbody>
                     {filteredDoctors.map((doctor) => (
-                      <tr key={doctor.doctorID} className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-2">{doctor.doctorID}</td>
+                      <tr key={doctor.doctorid} className="border-b hover:bg-gray-50">
+                        <td className="py-4 px-2">{doctor.doctorid}</td>
                         <td className="py-4 px-2">{doctor.name}</td>
                         <td className="py-4 px-2">{doctor.specialization}</td>
                         <td className="py-4 px-2">
                           <div className="flex items-center">
                             <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                            {doctor.avgRating.toFixed(1)}
+                            {(doctor.rating || 0).toFixed(1)}
                           </div>
                         </td>
                         <td className="py-4 px-2">{doctor.appointmentCount}</td>

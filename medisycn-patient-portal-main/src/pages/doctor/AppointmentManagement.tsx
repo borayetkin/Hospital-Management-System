@@ -276,9 +276,9 @@ const AppointmentManagement = () => {
     );
   }
 
-  const scheduledAppointments = appointments?.filter(app => app.status === 'scheduled') || [];
-  const completedAppointments = appointments?.filter(app => app.status === 'completed') || [];
-  const cancelledAppointments = appointments?.filter(app => app.status === 'cancelled') || [];
+  const scheduledAppointments = appointments?.filter(app => app.status === 'scheduled' || app.status === 'Scheduled' || app.status === 'SCHEDULED') ||  [];
+  const completedAppointments = appointments?.filter(app => app.status === 'completed' || app.status === 'Completed' || app.status === 'COMPLETED') || [];
+  const cancelledAppointments = appointments?.filter(app => app.status === 'cancelled' || app.status === 'Cancelled' || app.status === 'CANCELLED') || [];
 
   return (
     <div className="min-h-screen bg-white">

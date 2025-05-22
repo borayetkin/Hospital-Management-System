@@ -61,6 +61,9 @@ async def get_appointment_statistics(
             detail="Invalid period. Must be one of: week, month, quarter, year"
         )
     
+    print(f"Date range for {period}: {start_date} to {end_date}")  # Debug log
+    
+    # Get all appointments regardless of date for now
     stats = execute_query(GET_APPOINTMENT_STATS, (start_date, end_date))
     
     if not stats:
@@ -79,6 +82,7 @@ async def get_appointment_statistics(
     result["startDate"] = start_date
     result["endDate"] = end_date
     
+    print(f"Query result: {result}")  # Debug log
     return result
 
 @router.get("/stats/revenue")

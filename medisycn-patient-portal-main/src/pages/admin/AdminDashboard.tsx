@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/api';
@@ -55,16 +54,16 @@ const AdminDashboard = () => {
   const isLoading = doctorsLoading || patientsLoading || appointmentStatsLoading || revenueStatsLoading;
 
   const pieData = appointmentStats ? [
-    { name: 'Scheduled', value: appointmentStats.scheduledAppointments },
-    { name: 'Completed', value: appointmentStats.completedAppointments },
-    { name: 'Cancelled', value: appointmentStats.cancelledAppointments }
+    { name: 'Scheduled', value: appointmentStats.scheduledappointments },
+    { name: 'Completed', value: appointmentStats.completedappointments },
+    { name: 'Cancelled', value: appointmentStats.cancelledappointments }
   ] : [];
 
   const barData = appointmentStats ? [
-    { name: 'Total', appointments: appointmentStats.totalAppointments },
-    { name: 'Scheduled', appointments: appointmentStats.scheduledAppointments },
-    { name: 'Completed', appointments: appointmentStats.completedAppointments },
-    { name: 'Cancelled', appointments: appointmentStats.cancelledAppointments }
+    { name: 'Total', appointments: appointmentStats.totalappointments },
+    { name: 'Scheduled', appointments: appointmentStats.scheduledappointments },
+    { name: 'Completed', appointments: appointmentStats.completedappointments },
+    { name: 'Cancelled', appointments: appointmentStats.cancelledappointments }
   ] : [];
 
   if (isLoading) {
@@ -127,7 +126,7 @@ const AdminDashboard = () => {
               <div className="flex items-center">
                 <CalendarDays className="h-5 w-5 text-medisync-purple mr-2" />
                 <span className="text-2xl font-bold">
-                  {appointmentStats?.totalAppointments || 0}
+                  {appointmentStats?.totalappointments || 0}
                 </span>
               </div>
             </CardContent>
@@ -143,7 +142,7 @@ const AdminDashboard = () => {
               <div className="flex items-center">
                 <DollarSign className="h-5 w-5 text-medisync-purple mr-2" />
                 <span className="text-2xl font-bold">
-                  ${revenueStats?.totalRevenue.toLocaleString() || 0}
+                  ${revenueStats?.totalrevenue.toLocaleString() || 0}
                 </span>
               </div>
             </CardContent>
@@ -202,12 +201,12 @@ const AdminDashboard = () => {
                   </div>
                   
                   <div className="flex justify-center">
-                    <PieChart width={400} height={300}>
+                    <PieChart width={500} height={300} margin={{ top: 20, right: 80, left: 80, bottom: 20 }}>
                       <Pie
                         data={pieData}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
+                        labelLine={true}
                         label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                         outerRadius={80}
                         fill="#8884d8"
@@ -240,7 +239,7 @@ const AdminDashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">
-                        ${revenueStats?.totalRevenue.toLocaleString()}
+                        ${revenueStats?.totalrevenue.toLocaleString()}
                       </div>
                     </CardContent>
                   </Card>
@@ -253,7 +252,7 @@ const AdminDashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">
-                        {revenueStats?.billingCount}
+                        {revenueStats?.billingcount}
                       </div>
                     </CardContent>
                   </Card>
@@ -266,7 +265,7 @@ const AdminDashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">
-                        ${revenueStats?.avgBillingAmount.toFixed(2)}
+                        ${revenueStats?.avgbillingamount.toFixed(2)}
                       </div>
                     </CardContent>
                   </Card>
@@ -274,8 +273,8 @@ const AdminDashboard = () => {
                 
                 <div className="p-4 border rounded-md">
                   <h3 className="font-medium mb-2">Period Summary</h3>
-                  <p>Start Date: {revenueStats?.startDate}</p>
-                  <p>End Date: {revenueStats?.endDate}</p>
+                  <p>Start Date: {revenueStats?.startdate}</p>
+                  <p>End Date: {revenueStats?.enddate}</p>
                 </div>
               </CardContent>
             </Card>

@@ -23,11 +23,11 @@ ORDER BY u.name
 GET_APPOINTMENT_STATS = """
 SELECT 
     COUNT(*) as totalAppointments,
-    COUNT(CASE WHEN status = 'Scheduled' THEN 1 END) as scheduledAppointments,
-    COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completedAppointments,
-    COUNT(CASE WHEN status = 'Cancelled' THEN 1 END) as cancelledAppointments
+    COUNT(CASE WHEN status = 'scheduled' or status = 'Scheduled' THEN 1 END) as scheduledAppointments,
+    COUNT(CASE WHEN status = 'completed' or status = 'Completed' THEN 1 END) as completedAppointments,
+    COUNT(CASE WHEN status = 'cancelled' or status = 'Cancelled' THEN 1 END) as cancelledAppointments
 FROM Appointment
-WHERE startTime BETWEEN %s AND %s
+WHERE starttime BETWEEN %s AND %s
 """
 
 # Get revenue stats
