@@ -21,6 +21,9 @@ import PatientMedicalHistory from './pages/doctor/PatientMedicalHistory';
 import DoctorPatients from "./pages/doctor/DoctorPatients";
 import Resources from "./pages/doctor/Resources";
 import AdminReports from "./pages/admin/AdminReports";
+import StaffDashboard from "./pages/staff/StaffDashboard";
+import ResourceRequests from "./pages/staff/ResourceRequests";
+
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -159,12 +162,12 @@ const App = () => (
             {/* Staff routes (placeholder) */}
             <Route path="/staff/dashboard" element={
               <ProtectedRoute allowedRoles={['Staff']}>
-                <div>Staff Dashboard (Coming Soon)</div>
+                <StaffDashboard />
               </ProtectedRoute>
             } />
             <Route path="/staff/resources" element={
               <ProtectedRoute allowedRoles={['Staff']}>
-                <div>Resources Management (Coming Soon)</div>
+                <ResourceRequests />
               </ProtectedRoute>
             } />
 

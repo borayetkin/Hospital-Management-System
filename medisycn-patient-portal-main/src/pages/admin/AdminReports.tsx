@@ -9,24 +9,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileText, Download, Plus, TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
+import { FileText, Download, Plus, TrendingUp, Users, Calendar, DollarSign, ListFilter, FileSpreadsheet, Clock } from 'lucide-react';
 import { Report, PatientStatistics, DoctorStats, EquipmentStatistics } from '../../types/index';
 import Navbar from '@/components/Navbar';
+import { format } from 'date-fns';
 
 const AdminReports = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [reportName, setReportName] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [viewingReportId, setViewingReportId] = useState<number | null>(null);
+  const [showReportsDrawer, setShowReportsDrawer] = useState(false);
   
   const { toast } = useToast();
 
-  // Mock data based on your database schema
+  // Mock data for saved reports
   const mockReports: Report[] = [
     {
       reportID: 1,
       created_by: 1,
-      time_stamp: new Date().toISOString()
+      time_stamp: '2024-05-01T10:00:00Z',
+      
+    },
+    {
+      reportID: 2,
+      created_by: 1,
+      time_stamp: '2024-04-01T09:30:00Z',
+      
+    },
+    {
+      reportID: 3,
+      created_by: 1,
+      time_stamp: '2024-03-01T11:15:00Z',
+     
     }
   ];
 
@@ -101,17 +117,17 @@ const AdminReports = () => {
   });
 
   const { data: patientStats } = useQuery({
-    queryKey: ['patientStatistics', selectedTimeframe],
+    queryKey: ['patientStatistics', selectedTimeframe, viewingReportId],
     queryFn: () => Promise.resolve(mockPatientStats),
   });
 
   const { data: doctorStats } = useQuery({
-    queryKey: ['doctorStatistics', selectedTimeframe],
+    queryKey: ['doctorStatistics', selectedTimeframe, viewingReportId],
     queryFn: () => Promise.resolve(mockDoctorStats),
   });
 
   const { data: equipmentStats } = useQuery({
-    queryKey: ['equipmentStatistics', selectedTimeframe],
+    queryKey: ['equipmentStatistics', selectedTimeframe, viewingReportId],
     queryFn: () => Promise.resolve(mockEquipmentStats),
   });
 
@@ -119,15 +135,22 @@ const AdminReports = () => {
     mutationFn: async (data: { name: string; timeframe: string }) => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      return { reportID: Date.now(), success: true };
+      const newReport = {
+        reportID: Date.now(),
+        created_by: 1,
+        time_stamp: new Date().toISOString(),
+        name: data.name
+      };
+      return { success: true, report: newReport };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Report Created",
         description: "Your report has been generated successfully.",
       });
       setShowCreateDialog(false);
       setReportName('');
+      setViewingReportId(data.report.reportID);
     },
   });
 
@@ -160,6 +183,8 @@ const AdminReports = () => {
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
+  const currentReport = reports?.find(r => r.reportID === viewingReportId) || reports?.[0];
+
   return (
     <div className="container mx-auto p-4">
       <Navbar />
@@ -167,6 +192,46 @@ const AdminReports = () => {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-semibold">Reports & Analytics</h1>
           <div className="flex space-x-4">
+            {/* Report Selector */}
+            <Dialog open={showReportsDrawer} onOpenChange={setShowReportsDrawer}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {currentReport ? `Viewing: ${currentReport.reportID}` : "Select Report"}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Saved Reports</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {reports && reports.length > 0 ? (
+                    <div className="space-y-3">
+                      {reports.map(report => (
+                        <Card key={report.reportID} className={`cursor-pointer hover:bg-gray-50 ${viewingReportId === report.reportID ? 'border-2 border-primary' : ''}`}
+                          onClick={() => {
+                            setViewingReportId(report.reportID);
+                            setShowReportsDrawer(false);
+                          }}>
+                          <CardContent className="p-4 flex justify-between items-center">
+                            <div>
+                              <h3 className="font-medium">{report.reportID}</h3>
+                              <p className="text-sm text-gray-500">
+                                Created {format(new Date(report.time_stamp), 'MMM d, yyyy')}
+                              </p>
+                            </div>
+                            <FileText className="h-5 w-5 text-gray-400" />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center">No saved reports found.</p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+            
             <Select value={selectedTimeframe} onValueChange={(value: any) => setSelectedTimeframe(value)}>
               <SelectTrigger className="w-40">
                 <SelectValue />
@@ -227,6 +292,32 @@ const AdminReports = () => {
             </Dialog>
           </div>
         </div>
+
+        {/* Report Header Information */}
+        {currentReport && (
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                <div>
+                  <h2 className="text-xl font-semibold">{currentReport.reportID}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Generated on {format(new Date(currentReport.time_stamp), 'MMMM d, yyyy')} • {selectedTimeframe} data
+                  </p>
+                </div>
+                <div className="flex space-x-2 mt-4 md:mt-0">
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-1" />
+                    Export
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <ListFilter className="h-4 w-4 mr-1" />
+                    Filter
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
