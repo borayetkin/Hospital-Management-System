@@ -32,6 +32,18 @@ async def get_all_patients(current_user = Depends(get_current_user)):
     patients = execute_query(GET_ALL_PATIENTS)
     return patients
 
+@router.get("/resources")
+async def get_all_resources_admin(current_user = Depends(get_current_user)):
+    """Get all medical resources (for admin)"""
+    if current_user["role"] != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Admin only"
+        )
+    
+    resources = execute_query("SELECT * FROM MedicalResources")
+    return resources
+
 @router.get("/stats/appointments")
 async def get_appointment_statistics(
     period: Optional[str] = "month",

@@ -222,7 +222,12 @@ async def get_report(
         # Get statistics
         patient_stats = execute_query(GET_PATIENT_STATISTICS, (report_id,))
         doctor_stats = execute_query(GET_DOCTOR_STATISTICS, (report_id,))
-        equipment_stats = execute_query(GET_EQUIPMENT_STATISTICS, (report_id,))
+        equipment_stats = execute_query("""
+            SELECT es.*, mr.name as resourcename 
+            FROM EquipmentStatistics es
+            JOIN MedicalResources mr ON es.resourceID = mr.resourceID 
+            WHERE es.reportID = %s
+        """, (report_id,))
         
         return {
             **report,
