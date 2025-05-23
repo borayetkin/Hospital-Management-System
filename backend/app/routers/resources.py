@@ -3,10 +3,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from ..utils.auth import get_current_user
 from ..database import execute_query
-from ..schemas.resource import ResourceBase, ResourceCreate, ResourceResponse, ResourceRequest
+from ..schemas.resource import ResourceBase, ResourceCreate, ResourceResponse, ResourceRequest, ResourceRequestResponse, RecentActivity, ResourceStats
 from ..models.resource_queries import *
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/resources", tags=["Medical Resources"])
+
+# Create a public router for statistics and activities
+public_router = APIRouter(prefix="/public/resources", tags=["Public Resources"])
 
 @router.get("/", response_model=List[ResourceResponse])
 async def get_all_resources(
@@ -58,19 +65,22 @@ async def get_resource_by_id(
     
     return result[0]
 
-@router.post("/request")
+@router.post("/doctor/request", status_code=status.HTTP_201_CREATED)
 async def request_resource(
     request: ResourceRequest,
     current_user = Depends(get_current_user)
 ):
     """Request a medical resource (for doctors)"""
-    if current_user["role"] != "Doctor":
+    if current_user["role"].lower() != "doctor":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only doctors can request resources"
         )
     
-    # Check if resource exists and is available
+    # Use the userID from current_user as the doctorID - no need for the doctorID in the request
+    doctor_id = current_user["userid"]
+    
+    # Check if resource exists
     resource = execute_query(GET_RESOURCE_BY_ID, (request.resourceID,))
     
     if not resource:
@@ -79,34 +89,92 @@ async def request_resource(
             detail="Resource not found"
         )
     
-    if resource[0]["availability"] != "Available" and request.status == "Approved":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Resource is not available"
-        )
-    
-    # Create resource request
+    # Create resource request with status "Pending" by default
     try:
         execute_query(
             CREATE_RESOURCE_REQUEST, 
-            (current_user["userid"], request.resourceID, request.status),
+            (doctor_id, request.resourceID, request.status),
             fetch=False
         )
         
-        # If request is approved, update resource availability
-        if request.status == "Approved":
-            execute_query(
-                UPDATE_RESOURCE_AVAILABILITY,
-                ("In Use", request.resourceID),
-                fetch=False
-            )
-        
-        return {"message": "Resource request created successfully"}
+        return {"message": "Resource request created successfully", "status": request.status}
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create resource request: {str(e)}"
+        )
+
+@router.get("/doctor/requests", response_model=List[ResourceRequestResponse])
+async def get_my_resource_requests(current_user = Depends(get_current_user)):
+    """Get all resource requests for the logged in doctor"""
+    if current_user["role"].lower() != "doctor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can view their resource requests"
+        )
+    
+    requests = execute_query(GET_DOCTOR_RESOURCE_REQUESTS, (current_user["userid"],))
+    
+    return requests
+
+@router.get("/staff/requests", response_model=List[ResourceRequestResponse])
+async def get_all_resource_requests(current_user = Depends(get_current_user)):
+    """Get all resource requests (for staff/admin)"""
+    if current_user["role"].lower() not in ["admin", "staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin or staff can view all resource requests"
+        )
+    
+    requests = execute_query(GET_ALL_RESOURCE_REQUESTS)
+    
+    return requests
+
+@router.put("/staff/requests/{doctor_id}/{resource_id}")
+async def update_request_status(
+    doctor_id: int,
+    resource_id: int,
+    status: str,
+    current_user = Depends(get_current_user)
+):
+    """Update resource request status (for staff/admin)"""
+    if current_user["role"].lower() not in ["admin", "staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin or staff can update request status"
+        )
+    
+    # Validate status
+    valid_statuses = ["Pending", "Approved", "Rejected"]
+    if status not in valid_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Status must be one of {valid_statuses}"
+        )
+    
+    # Update request status
+    try:
+        execute_query(
+            CREATE_RESOURCE_REQUEST,
+            (doctor_id, resource_id, status),
+            fetch=False
+        )
+        
+        # If approved, update resource availability
+        if status == "Approved":
+            execute_query(
+                UPDATE_RESOURCE_AVAILABILITY,
+                ("In Use", resource_id),
+                fetch=False
+            )
+        
+        return {"message": f"Request status updated to {status}"}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update request status: {str(e)}"
         )
 
 @router.post("/", response_model=ResourceResponse)
@@ -160,3 +228,88 @@ async def update_resource_availability(
     )
     
     return {"message": "Resource availability updated successfully"}
+
+@router.get("/activities/recent", response_model=List[RecentActivity])
+async def get_recent_activities(
+    limit: int = 10
+):
+    """Get recent resource request activities"""
+    
+    activities = execute_query(GET_RECENT_RESOURCE_ACTIVITIES, (limit,))
+    
+    return activities
+
+@router.get("/statistics")
+async def get_resource_statistics():
+    """Get resource request statistics"""
+    
+    try:
+        stats = execute_query(GET_RESOURCE_STATISTICS)
+        
+        if not stats or len(stats) == 0:
+            # Return default values if no statistics are found
+            return {
+                "totalRequests": 0,
+                "approvedToday": 0,
+                "pendingRequests": 0,
+                "resourcesManaged": 0
+            }
+        
+        # Convert to simple dict with explicit type conversion for safety
+        return {
+            "totalRequests": int(stats[0]["totalRequests"]) if stats[0]["totalRequests"] is not None else 0,
+            "approvedToday": int(stats[0]["approvedToday"]) if stats[0]["approvedToday"] is not None else 0,
+            "pendingRequests": int(stats[0]["pendingRequests"]) if stats[0]["pendingRequests"] is not None else 0,
+            "resourcesManaged": int(stats[0]["resourcesManaged"]) if stats[0]["resourcesManaged"] is not None else 0
+        }
+    except Exception as e:
+        logger.error(f"Error fetching resource statistics: {e}")
+        # Return default values in case of an error
+        return {
+            "totalRequests": 0,
+            "approvedToday": 0,
+            "pendingRequests": 0,
+            "resourcesManaged": 0
+        }
+
+@public_router.get("/activities/recent")
+async def get_public_recent_activities(limit: int = 10):
+    """Get recent resource request activities (public endpoint)"""
+    try:
+        activities = execute_query(GET_RECENT_RESOURCE_ACTIVITIES, (limit,))
+        return activities
+    except Exception as e:
+        logger.error(f"Error fetching recent activities: {e}")
+        return []
+
+@public_router.get("/statistics")
+async def get_public_resource_statistics():
+    """Get resource request statistics (public endpoint)"""
+    try:
+        stats = execute_query(GET_RESOURCE_STATISTICS)
+        
+        if not stats or len(stats) == 0:
+            # Return default values if no statistics are found
+            return {
+                "totalRequests": 0,
+                "approvedToday": 0,
+                "pendingRequests": 0,
+                "resourcesManaged": 0
+            }
+        
+        # Convert to simple dict with explicit type conversion for safety
+        return {
+            "totalRequests": int(stats[0]["totalRequests"]) if stats[0]["totalRequests"] is not None else 0,
+            "approvedToday": int(stats[0]["approvedToday"]) if stats[0]["approvedToday"] is not None else 0,
+            "pendingRequests": int(stats[0]["pendingRequests"]) if stats[0]["pendingRequests"] is not None else 0,
+            "resourcesManaged": int(stats[0]["resourcesManaged"]) if stats[0]["resourcesManaged"] is not None else 0
+        }
+    except Exception as e:
+        logger.error(f"Error fetching resource statistics: {e}")
+        # Return default values in case of an error
+        return {
+            "totalRequests": 0,
+            "approvedToday": 0,
+            "pendingRequests": 0,
+            "resourcesManaged": 0
+        }
