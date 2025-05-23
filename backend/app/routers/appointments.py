@@ -304,3 +304,4 @@ async def add_appointment_review(
         )
     
     return appointment[0]
+

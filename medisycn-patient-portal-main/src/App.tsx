@@ -17,6 +17,7 @@ import AppointmentReview from './pages/patient/AppointmentReview';
 // Doctor pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import AppointmentManagement from "./pages/doctor/AppointmentManagement";
+import AppointmentMan from "./pages/doctor/AppointmentMan";
 import PatientMedicalHistory from './pages/doctor/PatientMedicalHistory';
 import DoctorPatients from "./pages/doctor/DoctorPatients";
 import Resources from "./pages/doctor/Resources";
@@ -29,6 +30,7 @@ import Resource from "./pages/staff/Resources";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import DoctorManagement from "./pages/admin/DoctorManagement";
 import PatientManagement from "./pages/admin/PatientManagement";
+
 
 const queryClient = new QueryClient();
 
