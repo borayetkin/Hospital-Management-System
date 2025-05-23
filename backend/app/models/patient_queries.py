@@ -12,6 +12,7 @@ UPDATE_USER_NAME = """
 UPDATE "User"
 SET name = %s
 WHERE userID = %s
+RETURNING userID, name
 """
 
 UPDATE_PATIENT_PROFILE = """

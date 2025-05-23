@@ -1,16 +1,34 @@
 # app/models/appointment_queries.py
 
 # Get doctors for appointments
+#GET_DOCTORS_FOR_APPOINTMENTS = """
+#SELECT d.employeeid, u.name, d.specialization, 
+#       AVG(a.rating) as rating
+#FROM Doctors d
+#JOIN "User" u ON d.employeeid = u.userid
+#LEFT JOIN Appointment a ON d.employeeid = a.doctorid
+#{where_clause}
+#GROUP BY d.employeeid, u.name, d.specialization
+#ORDER BY rating DESC NULLS LAST
+#"""
+
 GET_DOCTORS_FOR_APPOINTMENTS = """
-SELECT d.employeeid, u.name, d.specialization, 
-       AVG(a.rating) as rating
-FROM Doctors d
-JOIN "User" u ON d.employeeid = u.userid
-LEFT JOIN Appointment a ON d.employeeid = a.doctorid
+SELECT employeeID as employeeid, doctorName as name, specialization, rating
+FROM AllDoctorUsersView
 {where_clause}
-GROUP BY d.employeeid, u.name, d.specialization
 ORDER BY rating DESC NULLS LAST
 """
+
+
+# Get doctor's available slots
+#GET_DOCTOR_SLOTS = """
+#SELECT doctorid, starttime, endtime
+#FROM Slots
+#WHERE doctorid = %s
+#AND DATE(starttime) = %s
+#AND availability = 'available'
+#ORDER BY starttime
+#"""
 
 # Get doctor's available slots
 GET_DOCTOR_SLOTS = """
