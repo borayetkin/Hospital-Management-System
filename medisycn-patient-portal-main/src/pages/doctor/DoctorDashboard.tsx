@@ -19,13 +19,24 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Transform API response to match frontend format
 const transformAppointmentData = (data: any): Appointment => {
+  // Helper function to ensure valid date string
+  const ensureValidDate = (dateStr: string | undefined) => {
+    if (!dateStr) return new Date().toISOString();
+    try {
+      const date = new Date(dateStr);
+      return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  };
+
   return {
-    appointmentID: data.appointmentid || data.appointment_id || data.appointmentID,
-    patientID: data.patientid || data.patient_id || data.patientID,
+    appointmentid: data.appointmentid || data.appointment_id || data.appointmentID,
+    patientid: data.patientid || data.patient_id || data.patientID,
     doctorID: data.doctorid || data.doctor_id || data.doctorID,
     doctorName: data.doctorname || data.doctor_name || data.doctorName,
-    startTime: data.starttime || data.start_time || data.startTime,
-    endTime: data.endtime || data.end_time || data.endTime,
+    startTime: ensureValidDate(data.startTime || data.starttime || data.start_time),
+    endTime: ensureValidDate(data.endTime || data.endtime || data.end_time),
     status: (data.status || '').toLowerCase(),
     rating: data.rating,
     review: data.review,
@@ -99,7 +110,7 @@ const DoctorDashboard = () => {
       // Update the local state immediately for a responsive UI
       if (appointments && selectedAppointment) {
         const updatedAppointments = appointments.map(appointment => 
-          appointment.appointmentID === variables.appointmentId 
+          appointment.appointmentid === variables.appointmentId 
             ? data // Use the transformed data from the API response
             : appointment
         );
@@ -126,7 +137,7 @@ const DoctorDashboard = () => {
   const handleCompleteAppointment = () => {
     if (selectedAppointment) {
       updateAppointmentStatusMutation.mutate({
-        appointmentId: selectedAppointment.appointmentID,
+        appointmentId: selectedAppointment.appointmentid,
         status: 'completed'
       });
     }
@@ -135,7 +146,7 @@ const DoctorDashboard = () => {
   const handleCancelAppointment = () => {
     if (selectedAppointment) {
       updateAppointmentStatusMutation.mutate({
-        appointmentId: selectedAppointment.appointmentID,
+        appointmentId: selectedAppointment.appointmentid,
         status: 'cancelled'
       });
     }
@@ -257,7 +268,7 @@ const DoctorDashboard = () => {
                   <div className="space-y-4">
                     {todayAppointments.map(appointment => (
                       <div 
-                        key={appointment.appointmentID} 
+                        key={appointment.appointmentid} 
                         className="p-4 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white flex justify-between items-center"
                       >
                         <div>
@@ -271,7 +282,7 @@ const DoctorDashboard = () => {
                               {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                             </span>
                           </div>
-                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientID}</p>
+                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientid}</p>
                           <p className="text-sm text-gray-500">
                             {format(new Date(appointment.startTime), 'h:mm a')} - {format(new Date(appointment.endTime), 'h:mm a')}
                           </p>
@@ -307,11 +318,11 @@ const DoctorDashboard = () => {
                   <div className="space-y-4">
                     {upcomingAppointments.map(appointment => (
                       <div 
-                        key={appointment.appointmentID} 
+                        key={appointment.appointmentid} 
                         className="p-4 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white flex justify-between items-center"
                       >
                         <div>
-                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientID}</p>
+                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientid}</p>
                           <p className="text-sm text-gray-500">
                             {format(new Date(appointment.startTime), 'EEEE, MMMM d')} at {format(new Date(appointment.startTime), 'h:mm a')}
                           </p>
@@ -345,14 +356,14 @@ const DoctorDashboard = () => {
           <DialogHeader>
             <DialogTitle className="text-xl text-medisync-dark-purple">Appointment Details</DialogTitle>
             <DialogDescription>
-              Appointment #{selectedAppointment?.appointmentID}
+              Appointment #{selectedAppointment?.appointmentid}
             </DialogDescription>
           </DialogHeader>
           {selectedAppointment && (
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-sm font-medium text-gray-500">Patient ID:</div>
-                <div className="text-sm font-semibold">{selectedAppointment.patientID}</div>
+                <div className="text-sm font-semibold">{selectedAppointment.patientid}</div>
                 <div className="text-sm font-medium text-gray-500">Date:</div>
                 <div className="text-sm font-semibold">
                   {format(new Date(selectedAppointment.startTime), 'EEEE, MMMM d, yyyy')}

@@ -4,7 +4,7 @@ import { doctorApi } from '@/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, Plus, Pill } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -53,13 +53,18 @@ const transformAppointmentData = (data: any): Appointment => {
   };
 };
 
+interface Billing {
+  amount: number;
+  paymentStatus: string;
+  billingDate: string;
+}
+
 interface Process {
   processid: number;
   processName: string;
   processDescription: string;
   status: string;
-  amount: number;
-  paymentStatus: string;
+  billing: Billing;
 }
 
 const getStatusBadgeClass = (status: string) => {
@@ -72,17 +77,29 @@ const getStatusBadgeClass = (status: string) => {
   }
 };
 
+interface Medication {
+  medicationName: string;
+  description: string;
+  information: string;
+}
+
 const AppointmentManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+  const [isMedicationDialogOpen, setIsMedicationDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<'scheduled' | 'completed' | 'cancelled'>('scheduled');
   const [newProcess, setNewProcess] = useState({
     processName: '',
     processDescription: '',
     amount: 0
+  });
+  const [newMedication, setNewMedication] = useState<Medication>({
+    medicationName: '',
+    description: '',
+    information: ''
   });
 
   const { data: appointments, isLoading, refetch } = useQuery({
@@ -260,6 +277,116 @@ const AppointmentManagement = () => {
     }
   };
 
+  // Query for medications for selected appointment
+  const { data: medications, refetch: refetchMedications } = useQuery({
+    queryKey: ['appointmentMedications', selectedAppointment?.appointmentid],
+    queryFn: () => {
+      if (!selectedAppointment) return Promise.resolve([]);
+      return fetch(`http://localhost:8000/api/v1/medications/appointment/${selectedAppointment.appointmentid}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }).then(res => res.json());
+    },
+    enabled: !!selectedAppointment
+  });
+
+  // Query for all available medications
+  const { data: availableMedications } = useQuery({
+    queryKey: ['availableMedications'],
+    queryFn: () => {
+      return fetch('http://localhost:8000/api/v1/medications', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }).then(res => res.json());
+    }
+  });
+
+  const createAndPrescribeMedicationMutation = useMutation({
+    mutationFn: (medicationData: Medication) => {
+      if (!selectedAppointment) throw new Error('No appointment selected');
+      return fetch(`http://localhost:8000/api/v1/medications/create-and-prescribe?appointmentID=${selectedAppointment.appointmentid}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(medicationData)
+      }).then(res => res.json());
+    },
+    onSuccess: () => {
+      toast({
+        title: "Medication created and prescribed",
+        description: "New medication has been created and prescribed successfully.",
+      });
+      refetchMedications();
+      setNewMedication({
+        medicationName: '',
+        description: '',
+        information: ''
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create and prescribe medication.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const removePrescriptionMutation = useMutation({
+    mutationFn: ({ medicationName, appointmentId }: { medicationName: string, appointmentId: number }) => {
+      return fetch(`http://localhost:8000/api/v1/medications/${medicationName}/appointment/${appointmentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Prescription removed",
+        description: "Medication prescription has been removed successfully.",
+      });
+      refetchMedications();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove prescription.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleCreateAndPrescribeMedication = () => {
+    if (!newMedication.medicationName.trim()) {
+      toast({
+        title: "Error",
+        description: "Medication name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    createAndPrescribeMedicationMutation.mutate(newMedication);
+  };
+
+  const handleRemovePrescription = (medicationName: string) => {
+    if (selectedAppointment) {
+      removePrescriptionMutation.mutate({
+        medicationName,
+        appointmentId: selectedAppointment.appointmentid
+      });
+    }
+  };
+
+  const openMedicationDialog = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsMedicationDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white">
@@ -313,6 +440,7 @@ const AppointmentManagement = () => {
               appointments={scheduledAppointments} 
               onUpdateStatus={openUpdateDialog} 
               onManageProcesses={openProcessDialog}
+              onManageMedications={openMedicationDialog}
               status="scheduled"
             />
           </TabsContent>
@@ -321,6 +449,7 @@ const AppointmentManagement = () => {
               appointments={completedAppointments} 
               onUpdateStatus={openUpdateDialog} 
               onManageProcesses={openProcessDialog}
+              onManageMedications={openMedicationDialog}
               status="completed"
             />
           </TabsContent>
@@ -329,6 +458,7 @@ const AppointmentManagement = () => {
               appointments={cancelledAppointments} 
               onUpdateStatus={openUpdateDialog} 
               onManageProcesses={openProcessDialog}
+              onManageMedications={openMedicationDialog}
               status="cancelled"
             />
           </TabsContent>
@@ -464,17 +594,9 @@ const AppointmentManagement = () => {
                               <div className="mt-2 flex justify-between items-center">
                                 <div className="text-sm">
                                   <span className="font-medium">Amount: </span>
-                                  <span className="text-medisync-purple">${process.billing.amount}</span>
+                                  <span className="text-medisync-purple">${process.billing?.amount || 0}</span>
                                 </div>
-                                {process.paymentStatus === 'pending' && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handlePayment(process.processid)}
-                                    className="bg-medisync-purple hover:bg-medisync-purple/90"
-                                  >
-                                    Pay Now
-                                  </Button>
-                                )}
+                               
                               </div>
                             </div>
                             <div className="ml-4">
@@ -516,6 +638,109 @@ const AppointmentManagement = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* Add Medication Dialog */}
+        <Dialog open={isMedicationDialogOpen} onOpenChange={setIsMedicationDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-xl text-medisync-dark-purple">Manage Medications</DialogTitle>
+              <DialogDescription>
+                Create and manage medications for this appointment.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto pr-2">
+              <div className="space-y-4">
+                {/* Create New Medication Form */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="text-lg font-medium text-medisync-dark-purple mb-3">Create New Medication</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Medication Name*</label>
+                      <Input
+                        value={newMedication.medicationName}
+                        onChange={(e) => setNewMedication(prev => ({ ...prev, medicationName: e.target.value }))}
+                        placeholder="Enter medication name"
+                        className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Description</label>
+                      <Textarea
+                        value={newMedication.description}
+                        onChange={(e) => setNewMedication(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Enter medication description"
+                        className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">Additional Information</label>
+                      <Textarea
+                        value={newMedication.information}
+                        onChange={(e) => setNewMedication(prev => ({ ...prev, information: e.target.value }))}
+                        placeholder="Enter any additional information"
+                        className="border-gray-300 focus:border-medisync-purple focus:ring-medisync-purple"
+                        rows={2}
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleCreateAndPrescribeMedication}
+                      disabled={createAndPrescribeMedicationMutation.isPending}
+                      className="w-full bg-medisync-purple hover:bg-medisync-purple-dark text-white"
+                    >
+                      <Pill className="w-4 h-4 mr-2" />
+                      {createAndPrescribeMedicationMutation.isPending ? "Creating..." : "Create & Prescribe Medication"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Prescribed Medications */}
+                <div className="border p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-medisync-dark-purple mb-3">Prescribed Medications</h3>
+                  <div className="space-y-3">
+                    {medications && medications.length > 0 ? (
+                      medications.map((medication: Medication) => (
+                        <div key={medication.medicationName} className="bg-white p-3 rounded-md border shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <h4 className="font-medium text-medisync-dark-purple">{medication.medicationName}</h4>
+                              {medication.description && (
+                                <p className="text-sm text-gray-600">{medication.description}</p>
+                              )}
+                              {medication.information && (
+                                <p className="text-sm text-gray-600 mt-1">{medication.information}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleRemovePrescription(medication.medicationName)}
+                              disabled={removePrescriptionMutation.isPending}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        No medications prescribed for this appointment.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="mt-4">
+              <Button 
+                variant="outline"
+                onClick={() => setIsMedicationDialogOpen(false)}
+                className="border-medisync-purple text-medisync-purple hover:bg-medisync-purple/5"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -525,10 +750,11 @@ interface AppointmentListProps {
   appointments: Appointment[];
   onUpdateStatus: (appointment: Appointment) => void;
   onManageProcesses: (appointment: Appointment) => void;
+  onManageMedications: (appointment: Appointment) => void;
   status: string;
 }
 
-const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses, status }: AppointmentListProps) => {
+const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses, onManageMedications, status }: AppointmentListProps) => {
   if (appointments.length === 0) {
     return (
       <Card className="border border-gray-100 shadow-sm bg-white">
@@ -582,6 +808,14 @@ const AppointmentList = ({ appointments, onUpdateStatus, onManageProcesses, stat
                     onClick={() => onUpdateStatus(appointment)}
                   >
                     Update Status
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="border-medisync-purple text-medisync-purple hover:bg-medisync-purple/5"
+                    onClick={() => onManageMedications(appointment)}
+                  >
+                    <Pill className="w-4 h-4 mr-2" />
+                    Manage Medications
                   </Button>
                   <Button 
                     className="bg-medisync-purple hover:bg-medisync-purple-dark text-white"
