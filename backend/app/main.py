@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-from .routers import auth, patients, doctors, admin, appointments, resources, processes
+from .routers import auth, patients, doctors, admin, appointments, resources, processes, reports
 from .config import settings
 
 # Configure logging
@@ -37,6 +37,7 @@ app.include_router(admin.router, prefix=api_prefix)
 app.include_router(appointments.router, prefix=api_prefix)
 app.include_router(resources.router, prefix=api_prefix)
 app.include_router(processes.router, prefix=api_prefix)
+app.include_router(reports.router, prefix=api_prefix)
 
 @app.get("/")
 async def root():
