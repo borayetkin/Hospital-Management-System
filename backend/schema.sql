@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS Request (
     doctorID INTEGER,
     resourceID INTEGER,
     status VARCHAR(50),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (doctorID, resourceID),
     FOREIGN KEY (doctorID) REFERENCES Doctors(employeeID),
     FOREIGN KEY (resourceID) REFERENCES MedicalResources(resourceID)

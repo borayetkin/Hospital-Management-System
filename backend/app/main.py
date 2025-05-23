@@ -19,13 +19,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Configure CORS
+# Configure CORS - simplified permissive configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all methods 
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Include routers with versioned prefix
@@ -36,6 +36,7 @@ app.include_router(doctors.router, prefix=api_prefix)
 app.include_router(admin.router, prefix=api_prefix)
 app.include_router(appointments.router, prefix=api_prefix)
 app.include_router(resources.router, prefix=api_prefix)
+app.include_router(resources.public_router, prefix=api_prefix)
 app.include_router(processes.router, prefix=api_prefix)
 app.include_router(medications.router, prefix=api_prefix)
 
