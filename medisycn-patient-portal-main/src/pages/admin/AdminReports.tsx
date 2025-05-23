@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,135 +13,134 @@ import { FileText, Download, Plus, TrendingUp, Users, Calendar, DollarSign, List
 import { Report, PatientStatistics, DoctorStats, EquipmentStatistics } from '../../types/index';
 import Navbar from '@/components/Navbar';
 import { format } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const AdminReports = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
-  const [reportName, setReportName] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [viewingReportId, setViewingReportId] = useState<number | null>(null);
   const [showReportsDrawer, setShowReportsDrawer] = useState(false);
   
+  // Change back to arrays for simpler state management
+  const [selectedPatients, setSelectedPatients] = useState<number[]>([]);
+  const [selectedDoctors, setSelectedDoctors] = useState<number[]>([]);
+  const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
+  
   const { toast } = useToast();
-
-  // Mock data for saved reports
-  const mockReports: Report[] = [
-    {
-      reportID: 1,
-      created_by: 1,
-      time_stamp: '2024-05-01T10:00:00Z',
-      
-    },
-    {
-      reportID: 2,
-      created_by: 1,
-      time_stamp: '2024-04-01T09:30:00Z',
-      
-    },
-    {
-      reportID: 3,
-      created_by: 1,
-      time_stamp: '2024-03-01T11:15:00Z',
-     
-    }
-  ];
-
-  const mockPatientStats: PatientStatistics[] = [
-    {
-      reportID: 1,
-      statID: 1,
-      patientID: 1,
-      totalAppointments: 15,
-      totalProcesses: 12,
-      totalPaid: 2500.00,
-      lastVisit: '2024-01-10',
-      reportDate: '2024-01-15'
-    },
-    {
-      reportID: 1,
-      statID: 2,
-      patientID: 2,
-      totalAppointments: 8,
-      totalProcesses: 6,
-      totalPaid: 1200.00,
-      lastVisit: '2024-01-12',
-      reportDate: '2024-01-15'
-    }
-  ];
-
-  const mockDoctorStats: DoctorStats[] = [
-    {
-      reportID: 1,
-      statID: 1,
-      doctorID: 101,
-      prescriptionCount: 45,
-      appointmentCount: 50,
-      totalRevenue: 15000.00,
-      reportDate: '2024-01-15',
-      ratings: 4.8
-    },
-    {
-      reportID: 1,
-      statID: 2,
-      doctorID: 102,
-      prescriptionCount: 38,
-      appointmentCount: 42,
-      totalRevenue: 12600.00,
-      reportDate: '2024-01-15',
-      ratings: 4.6
-    }
-  ];
-
-  const mockEquipmentStats: EquipmentStatistics[] = [
-    {
-      statID: 1,
-      reportID: 1,
-      resourceID: 1,
-      usageCount: 125,
-      lastUsedDate: '2024-01-14',
-      totalRequests: 150
-    },
-    {
-      statID: 2,
-      reportID: 1,
-      resourceID: 2,
-      usageCount: 89,
-      lastUsedDate: '2024-01-13',
-      totalRequests: 95
-    }
-  ];
 
   const { data: reports } = useQuery({
     queryKey: ['adminReports'],
-    queryFn: () => Promise.resolve(mockReports),
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/reports', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch reports');
+      }
+      return response.json();
+    }
   });
 
-  const { data: patientStats } = useQuery({
-    queryKey: ['patientStatistics', selectedTimeframe, viewingReportId],
-    queryFn: () => Promise.resolve(mockPatientStats),
+  const { data: reportData } = useQuery({
+    queryKey: ['reportData', viewingReportId],
+    queryFn: async () => {
+      if (!viewingReportId) return null;
+      const response = await fetch(`http://localhost:8000/api/v1/reports/${viewingReportId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch report data');
+      }
+      return response.json();
+    },
+    enabled: !!viewingReportId
   });
 
-  const { data: doctorStats } = useQuery({
-    queryKey: ['doctorStatistics', selectedTimeframe, viewingReportId],
-    queryFn: () => Promise.resolve(mockDoctorStats),
+  const { data: availablePatients } = useQuery({
+    queryKey: ['availablePatients'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/admin/patients', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch patients');
+      }
+      return response.json();
+    }
   });
 
-  const { data: equipmentStats } = useQuery({
-    queryKey: ['equipmentStatistics', selectedTimeframe, viewingReportId],
-    queryFn: () => Promise.resolve(mockEquipmentStats),
+  const { data: availableDoctors } = useQuery({
+    queryKey: ['availableDoctors'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/admin/doctors', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch doctors');
+      }
+      const data = await response.json();
+      console.log('Fetched doctors data:', data); // Debug the data structure
+      return data;
+    }
+  });
+
+  const { data: availableEquipment } = useQuery({
+    queryKey: ['availableEquipment'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/admin/resources', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch equipment');
+      }
+      return response.json();
+    }
   });
 
   const createReportMutation = useMutation({
-    mutationFn: async (data: { name: string; timeframe: string }) => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const newReport = {
-        reportID: Date.now(),
-        created_by: 1,
-        time_stamp: new Date().toISOString(),
-        name: data.name
-      };
-      return { success: true, report: newReport };
+    mutationFn: async (data: { 
+      timeframe: string;
+      patient_ids?: number[];
+      doctor_ids?: number[];
+      equipment_ids?: number[];
+    }) => {
+      const response = await fetch('http://localhost:8000/api/v1/reports', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          timeframe: data.timeframe,
+          patient_ids: selectedPatients.length > 0 ? selectedPatients : undefined,
+          doctor_ids: selectedDoctors.length > 0 ? selectedDoctors : undefined,
+          equipment_ids: selectedEquipment.length > 0 ? selectedEquipment : undefined
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create report');
+      }
+      
+      return response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -149,41 +148,50 @@ const AdminReports = () => {
         description: "Your report has been generated successfully.",
       });
       setShowCreateDialog(false);
-      setReportName('');
-      setViewingReportId(data.report.reportID);
+      setViewingReportId(data.reportid);
+      setSelectedPatients([]);
+      setSelectedDoctors([]);
+      setSelectedEquipment([]);
     },
   });
 
-  const handleCreateReport = () => {
-    createReportMutation.mutate({
-      name: reportName,
-      timeframe: selectedTimeframe
-    });
-  };
+  // Update the data usage in the component
+  const patientStats = reportData?.patientStatistics || [];
+  const doctorStats = reportData?.doctorStatistics || [];
+  const equipmentStats = reportData?.equipmentStatistics || [];
 
   // Calculate summary metrics
-  const totalPatients = patientStats?.length || 0;
-  const totalAppointments = doctorStats?.reduce((sum, doc) => sum + doc.appointmentCount, 0) || 0;
-  const totalRevenue = doctorStats?.reduce((sum, doc) => sum + doc.totalRevenue, 0) || 0;
-  const totalProcesses = patientStats?.reduce((sum, patient) => sum + patient.totalProcesses, 0) || 0;
+  const totalPatients = patientStats.length;
+  const totalAppointments = doctorStats.reduce((sum, doc) => sum + (doc.appointmentcount || 0), 0);
+  const totalRevenue = doctorStats.reduce((sum, doc) => sum + (doc.totalrevenue || 0), 0);
+  const totalProcesses = patientStats.reduce((sum, patient) => sum + (patient.totalprocesses || 0), 0);
 
   // Chart data
-  const appointmentChartData = doctorStats?.map(doc => ({
-    name: `Doctor ${doc.doctorID}`,
-    appointments: doc.appointmentCount,
-    revenue: doc.totalRevenue
-  })) || [];
+  const appointmentChartData = doctorStats.map(doc => ({
+    name: doc.doctorname,
+    appointments: doc.appointmentcount || 0,
+    revenue: doc.totalrevenue || 0
+  }));
 
-  const revenueData = [
-    { name: 'Appointments', value: totalRevenue * 0.6 },
-    { name: 'Procedures', value: totalRevenue * 0.25 },
-    { name: 'Equipment', value: totalRevenue * 0.10 },
-    { name: 'Other', value: totalRevenue * 0.05 }
-  ];
+  // Calculate additional metrics for overview
+  const topDoctors = [...doctorStats].sort((a, b) => (b.appointmentcount || 0) - (a.appointmentcount || 0)).slice(0, 3);
+  const topPatients = [...patientStats].sort((a, b) => (b.totalappointments || 0) - (a.totalappointments || 0)).slice(0, 3);
+  const averageRating = doctorStats.reduce((sum, doc) => sum + (doc.ratings || 0), 0) / (doctorStats.length || 1);
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const currentReport = reports?.find(r => r.reportid === viewingReportId) || reports?.[0];
 
-  const currentReport = reports?.find(r => r.reportID === viewingReportId) || reports?.[0];
+  // Add useEffect to monitor state changes
+  useEffect(() => {
+    console.log('Selected Patients Changed:', selectedPatients);
+  }, [selectedPatients]);
+
+  useEffect(() => {
+    console.log('Selected Doctors Changed:', selectedDoctors);
+  }, [selectedDoctors]);
+
+  useEffect(() => {
+    console.log('Selected Equipment Changed:', selectedEquipment);
+  }, [selectedEquipment]);
 
   return (
     <div className="container mx-auto p-4">
@@ -197,38 +205,48 @@ const AdminReports = () => {
               <DialogTrigger asChild>
                 <Button variant="outline">
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  {currentReport ? `Viewing: ${currentReport.reportID}` : "Select Report"}
+                  {currentReport ? `Viewing: ${currentReport.reportid}` : "Select Report"}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Saved Reports</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="space-y-3">
                   {reports && reports.length > 0 ? (
-                    <div className="space-y-3">
-                      {reports.map(report => (
-                        <Card key={report.reportID} className={`cursor-pointer hover:bg-gray-50 ${viewingReportId === report.reportID ? 'border-2 border-primary' : ''}`}
+                      reports.map(report => (
+                        <Card 
+                          key={report.reportid} 
+                          className={`cursor-pointer transition-colors hover:bg-gray-50 ${
+                            viewingReportId === report.reportid ? 'border-2 border-primary bg-primary/5' : ''
+                          }`}
                           onClick={() => {
-                            setViewingReportId(report.reportID);
+                            setViewingReportId(report.reportid);
                             setShowReportsDrawer(false);
-                          }}>
-                          <CardContent className="p-4 flex justify-between items-center">
+                          }}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-medium">{report.reportID}</h3>
+                                <h3 className="font-medium">Report #{report.reportid}</h3>
                               <p className="text-sm text-gray-500">
                                 Created {format(new Date(report.time_stamp), 'MMM d, yyyy')}
                               </p>
                             </div>
                             <FileText className="h-5 w-5 text-gray-400" />
+                            </div>
                           </CardContent>
                         </Card>
-                      ))}
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p>No saved reports found.</p>
                     </div>
-                  ) : (
-                    <p className="text-center">No saved reports found.</p>
                   )}
                 </div>
+                </ScrollArea>
               </DialogContent>
             </Dialog>
             
@@ -250,19 +268,11 @@ const AdminReports = () => {
                   Create Report
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Create New Report</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Report Name</label>
-                    <Input
-                      value={reportName}
-                      onChange={(e) => setReportName(e.target.value)}
-                      placeholder="Enter report name..."
-                    />
-                  </div>
+                <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium mb-2">Timeframe</label>
                     <Select value={selectedTimeframe} onValueChange={(value: any) => setSelectedTimeframe(value)}>
@@ -276,13 +286,151 @@ const AdminReports = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Select Items to Include</h3>
+                    
+                    {/* Patients Selection */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Patients</h4>
+                      <ScrollArea className="h-32 border rounded-md p-2">
+                        <div className="space-y-2">
+                          {availablePatients?.map((patient: any) => {
+                            console.log('Rendering patient:', patient.patientid, 'Selected:', selectedPatients.includes(patient.patientid));
+                            return (
+                              <div 
+                                key={patient.patientid} 
+                                className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-md"
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={`patient-${patient.patientid}`}
+                                  checked={selectedPatients.includes(patient.patientid)}
+                                  onChange={() => {
+                                    console.log('=== PATIENT SELECTION DEBUG ===');
+                                    console.log('Current selected patients:', selectedPatients);
+                                    console.log('Toggling patient:', patient.patientid);
+                                    console.log('Patient name:', patient.name);
+                                    setSelectedPatients(current => {
+                                      const isSelected = current.includes(patient.patientid);
+                                      const newSelection = isSelected 
+                                        ? current.filter(id => id !== patient.patientid)
+                                        : [...current, patient.patientid];
+                                      console.log('New selection will be:', newSelection);
+                                      return newSelection;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                                <label 
+                                  htmlFor={`patient-${patient.patientid}`} 
+                                  className="text-sm flex-1 cursor-pointer"
+                                >
+                                  {patient.name}
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </div>
+
+                    {/* Doctors Selection */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Doctors</h4>
+                      <ScrollArea className="h-32 border rounded-md p-2">
+                        <div className="space-y-2">
+                          {availableDoctors?.map((doctor: any) => {
+                            console.log('Rendering doctor:', doctor.employeeid, 'Selected:', selectedDoctors.includes(doctor.employeeid));
+                            return (
+                              <div 
+                                key={doctor.employeeid} 
+                                className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-md"
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={`doctor-${doctor.employeeid}`}
+                                  checked={selectedDoctors.includes(doctor.employeeid)}
+                                  onChange={() => {
+                                    console.log('=== DOCTOR SELECTION DEBUG ===');
+                                    console.log('Current selected doctors:', selectedDoctors);
+                                    console.log('Toggling doctor:', doctor.employeeid);
+                                    console.log('Doctor name:', doctor.name);
+                                    setSelectedDoctors(current => {
+                                      const isSelected = current.includes(doctor.employeeid);
+                                      const newSelection = isSelected 
+                                        ? current.filter(id => id !== doctor.employeeid)
+                                        : [...current, doctor.employeeid];
+                                      console.log('New selection will be:', newSelection);
+                                      return newSelection;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                                <label 
+                                  htmlFor={`doctor-${doctor.employeeid}`} 
+                                  className="text-sm flex-1 cursor-pointer"
+                                >
+                                  Dr. {doctor.name} ({doctor.specialization})
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </div>
+
+                    {/* Equipment Selection */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Equipment</h4>
+                      <ScrollArea className="h-32 border rounded-md p-2">
+                        <div className="space-y-2">
+                          {availableEquipment?.map((equipment: any) => (
+                            <div 
+                              key={equipment.resourceid} 
+                              className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-md"
+                            >
+                              <input
+                                type="checkbox"
+                                id={`equipment-${equipment.resourceid}`}
+                                checked={selectedEquipment.includes(equipment.resourceid)}
+                                onChange={() => {
+                                  setSelectedEquipment(current => {
+                                    const isSelected = current.includes(equipment.resourceid);
+                                    if (isSelected) {
+                                      return current.filter(id => id !== equipment.resourceid);
+                                    } else {
+                                      return [...current, equipment.resourceid];
+                                    }
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <label 
+                                htmlFor={`equipment-${equipment.resourceid}`} 
+                                className="text-sm flex-1 cursor-pointer"
+                              >
+                                {equipment.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                       Cancel
                     </Button>
                     <Button 
-                      onClick={handleCreateReport}
-                      disabled={!reportName.trim() || createReportMutation.isPending}
+                      onClick={() => createReportMutation.mutate({ 
+                        timeframe: selectedTimeframe,
+                        patient_ids: selectedPatients,
+                        doctor_ids: selectedDoctors,
+                        equipment_ids: selectedEquipment
+                      })}
+                      disabled={createReportMutation.isPending}
                     >
                       Create Report
                     </Button>
@@ -299,7 +447,7 @@ const AdminReports = () => {
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
-                  <h2 className="text-xl font-semibold">{currentReport.reportID}</h2>
+                  <h2 className="text-xl font-semibold">{currentReport.reportid}</h2>
                   <p className="text-sm text-gray-500 mt-1">
                     Generated on {format(new Date(currentReport.time_stamp), 'MMMM d, yyyy')} • {selectedTimeframe} data
                   </p>
@@ -320,16 +468,16 @@ const AdminReports = () => {
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalPatients}</div>
+              <div className="text-2xl font-bold">{patientStats.length}</div>
               <p className="text-xs text-muted-foreground">
-                +12% from last {selectedTimeframe.slice(0, -2)}
+                Patients in this report
               </p>
             </CardContent>
           </Card>
@@ -340,9 +488,11 @@ const AdminReports = () => {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalAppointments}</div>
+              <div className="text-2xl font-bold">
+                {doctorStats.reduce((sum, doc) => sum + (doc.appointmentcount || 0), 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +8% from last {selectedTimeframe.slice(0, -2)}
+                Appointments in this report
               </p>
             </CardContent>
           </Card>
@@ -353,82 +503,121 @@ const AdminReports = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                ${doctorStats.reduce((sum, doc) => sum + (doc.totalrevenue || 0), 0).toLocaleString()}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +15% from last {selectedTimeframe.slice(0, -2)}
+                Revenue in this report
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Medical Processes</CardTitle>
+              <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalProcesses}</div>
+              <div className="text-2xl font-bold">
+                {doctorStats.length > 0 
+                  ? (doctorStats.reduce((sum, doc) => sum + (doc.ratings || 0), 0) / doctorStats.length).toFixed(1)
+                  : "N/A"}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +5% from last {selectedTimeframe.slice(0, -2)}
+                Average rating in this report
               </p>
             </CardContent>
           </Card>
         </div>
 
+        {/* Top Performers and Statistics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Doctors */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Performing Doctors</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topDoctors.map((doctor, index) => (
+                  <div key={doctor.doctorid} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-medium">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{doctor.doctorname}</p>
+                        <p className="text-sm text-muted-foreground">{doctor.specialization}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{doctor.appointmentcount} appointments</p>
+                      <p className="text-sm text-muted-foreground">Rating: {doctor.ratings?.toFixed(1) || 'N/A'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top Patients */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Most Active Patients</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topPatients.map((patient, index) => (
+                  <div key={patient.patientid} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-medium">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{patient.patientname}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Last visit: {patient.lastvisit ? new Date(patient.lastvisit).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{patient.totalappointments} appointments</p>
+                      <p className="text-sm text-muted-foreground">{patient.totalprocesses} processes</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Doctor Performance Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Doctor Performance Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={appointmentChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" />
+                <Tooltip />
+                <Bar yAxisId="left" dataKey="appointments" fill="#8884d8" name="Appointments" />
+                <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
         {/* Tabbed Reports */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="doctors">Doctors</TabsTrigger>
             <TabsTrigger value="patients">Patients</TabsTrigger>
             <TabsTrigger value="equipment">Equipment</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Doctor Performance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={appointmentChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="appointments" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Revenue Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={revenueData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label
-                      >
-                        {revenueData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
           <TabsContent value="doctors" className="space-y-6">
             <Card>
@@ -440,7 +629,7 @@ const AdminReports = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-4 px-2">Doctor ID</th>
+                        <th className="text-left py-4 px-2">Doctor</th>
                         <th className="text-left py-4 px-2">Appointments</th>
                         <th className="text-left py-4 px-2">Prescriptions</th>
                         <th className="text-left py-4 px-2">Revenue</th>
@@ -449,13 +638,13 @@ const AdminReports = () => {
                     </thead>
                     <tbody>
                       {doctorStats?.map((doctor) => (
-                        <tr key={doctor.doctorID} className="border-b hover:bg-gray-50">
-                          <td className="py-4 px-2">Dr. {doctor.doctorID}</td>
-                          <td className="py-4 px-2">{doctor.appointmentCount}</td>
-                          <td className="py-4 px-2">{doctor.prescriptionCount}</td>
-                          <td className="py-4 px-2">${doctor.totalRevenue.toLocaleString()}</td>
+                        <tr key={doctor.doctorid} className="border-b hover:bg-gray-50">
+                          <td className="py-4 px-2">Dr. {doctor.doctorname}</td>
+                          <td className="py-4 px-2">{doctor.appointmentcount || 0}</td>
+                          <td className="py-4 px-2">{doctor.prescriptioncount || 0}</td>
+                          <td className="py-4 px-2">${(doctor.totalrevenue || 0).toLocaleString()}</td>
                           <td className="py-4 px-2">
-                            <Badge variant="secondary">{doctor.ratings.toFixed(1)}</Badge>
+                            <Badge variant="secondary">{(doctor.ratings || 0).toFixed(1)}</Badge>
                           </td>
                         </tr>
                       ))}
@@ -476,7 +665,7 @@ const AdminReports = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-4 px-2">Patient ID</th>
+                        <th className="text-left py-4 px-2">Patient</th>
                         <th className="text-left py-4 px-2">Appointments</th>
                         <th className="text-left py-4 px-2">Processes</th>
                         <th className="text-left py-4 px-2">Total Paid</th>
@@ -485,12 +674,12 @@ const AdminReports = () => {
                     </thead>
                     <tbody>
                       {patientStats?.map((patient) => (
-                        <tr key={patient.patientID} className="border-b hover:bg-gray-50">
-                          <td className="py-4 px-2">{patient.patientID}</td>
-                          <td className="py-4 px-2">{patient.totalAppointments}</td>
-                          <td className="py-4 px-2">{patient.totalProcesses}</td>
-                          <td className="py-4 px-2">${patient.totalPaid.toLocaleString()}</td>
-                          <td className="py-4 px-2">{new Date(patient.lastVisit).toLocaleDateString()}</td>
+                        <tr key={patient.patientid} className="border-b hover:bg-gray-50">
+                          <td className="py-4 px-2">{patient.patientname}</td>
+                          <td className="py-4 px-2">{patient.totalappointments || 0}</td>
+                          <td className="py-4 px-2">{patient.totalprocesses || 0}</td>
+                          <td className="py-4 px-2">${(patient.totalpaid || 0).toLocaleString()}</td>
+                          <td className="py-4 px-2">{patient.lastvisit ? new Date(patient.lastvisit).toLocaleDateString() : 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -510,7 +699,7 @@ const AdminReports = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-4 px-2">Resource ID</th>
+                        <th className="text-left py-4 px-2">Resource</th>
                         <th className="text-left py-4 px-2">Usage Count</th>
                         <th className="text-left py-4 px-2">Total Requests</th>
                         <th className="text-left py-4 px-2">Last Used</th>
@@ -519,14 +708,14 @@ const AdminReports = () => {
                     </thead>
                     <tbody>
                       {equipmentStats?.map((equipment) => (
-                        <tr key={equipment.resourceID} className="border-b hover:bg-gray-50">
-                          <td className="py-4 px-2">Resource {equipment.resourceID}</td>
-                          <td className="py-4 px-2">{equipment.usageCount}</td>
-                          <td className="py-4 px-2">{equipment.totalRequests}</td>
-                          <td className="py-4 px-2">{new Date(equipment.lastUsedDate).toLocaleDateString()}</td>
+                        <tr key={equipment.resourceid} className="border-b hover:bg-gray-50">
+                          <td className="py-4 px-2">Resource {equipment.resourceid}</td>
+                          <td className="py-4 px-2">{equipment.usagecount || 0}</td>
+                          <td className="py-4 px-2">{equipment.totalrequests || 0}</td>
+                          <td className="py-4 px-2">{equipment.lastuseddate ? new Date(equipment.lastuseddate).toLocaleDateString() : 'N/A'}</td>
                           <td className="py-4 px-2">
-                            <Badge variant={equipment.usageCount > 100 ? "default" : "secondary"}>
-                              {((equipment.usageCount / equipment.totalRequests) * 100).toFixed(1)}%
+                            <Badge variant={equipment.usagecount > 100 ? "default" : "secondary"}>
+                              {((equipment.usagecount || 0) / (equipment.totalrequests || 1) * 100).toFixed(1)}%
                             </Badge>
                           </td>
                         </tr>
