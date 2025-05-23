@@ -2,9 +2,15 @@ import { formatDistanceToNow, format, parseISO } from 'date-fns';
 import { Appointment } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, ChevronUp, Pill } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface Medication {
+  medicationName: string;
+  description: string;
+  information: string;
+}
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -15,13 +21,45 @@ interface AppointmentCardProps {
 
 const AppointmentCard = ({ appointment, onReview, onCancel, onPay }: AppointmentCardProps) => {
   const [showProcesses, setShowProcesses] = useState(false);
+  const [showPrescriptions, setShowPrescriptions] = useState(false);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [isLoadingMedications, setIsLoadingMedications] = useState(false);
+
   const startTime = parseISO(appointment.startTime);
   const endTime = parseISO(appointment.endTime);
+  
+  // Fetch medications when prescriptions section is opened
+  const fetchMedications = async () => {
+    if (!showPrescriptions || medications.length > 0) return;
+    
+    setIsLoadingMedications(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/medications/appointment/${appointment.appointmentid}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setMedications(data);
+    } catch (error) {
+      console.error('Error fetching medications:', error);
+    } finally {
+      setIsLoadingMedications(false);
+    }
+  };
+
+  // Use useEffect to fetch medications when showPrescriptions changes
+  useEffect(() => {
+    if (showPrescriptions) {
+      fetchMedications();
+    }
+  }, [showPrescriptions]);
   
   console.log('Appointment data:', appointment);
   console.log('Processes:', appointment.processes);
   console.log('Show processes state:', showProcesses);
   console.log('Billing:', appointment.processes?.[0]?.billing);
+  
   
   // Determine if appointment is in the future
   const isUpcoming = startTime > new Date();
@@ -148,6 +186,55 @@ const AppointmentCard = ({ appointment, onReview, onCancel, onPay }: Appointment
             )}
           </div>
         )}
+
+        {/* Prescriptions Section */}
+        <div className="mt-4">
+          <Button
+            variant="ghost"
+            className="w-full flex items-center justify-between text-medisync-purple"
+            onClick={() => setShowPrescriptions(!showPrescriptions)}
+          >
+            <span>Prescriptions</span>
+            {showPrescriptions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+          
+          {showPrescriptions && (
+            <div className="mt-2 space-y-2">
+              {isLoadingMedications ? (
+                <div className="text-center py-4 text-gray-500">
+                  Loading medications...
+                </div>
+              ) : medications.length > 0 ? (
+                medications.map((medication) => (
+                  <div key={medication.medicationName} className="bg-white p-3 rounded-md border shadow-sm">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <Pill className="h-4 w-4 text-medisync-purple" />
+                        <h4 className="font-medium text-medisync-dark-purple">{medication.medicationName}</h4>
+                      </div>
+                      {medication.description && (
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Description: </span>
+                          <span>{medication.description}</span>
+                        </div>
+                      )}
+                      {medication.information && (
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Instructions: </span>
+                          <span>{medication.information}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  No medications prescribed for this appointment.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
       
       <CardFooter className="p-4 pt-0 flex justify-end gap-2">

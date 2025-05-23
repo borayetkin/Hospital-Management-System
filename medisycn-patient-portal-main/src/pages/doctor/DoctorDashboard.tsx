@@ -30,6 +30,8 @@ const transformAppointmentData = (data: any): Appointment => {
     }
   };
 
+  console.log(data);
+
   return {
     appointmentid: data.appointmentid || data.appointment_id || data.appointmentID,
     patientid: data.patientid || data.patient_id || data.patientID,
@@ -50,9 +52,40 @@ const DoctorDashboard = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Fetch doctor profile
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['doctorProfile'],
-    queryFn: doctorApi.getProfile,
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/doctors/profile', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch doctor profile');
+      }
+      return response.json();
+    }
+  });
+
+  // Fetch doctor stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['doctorStats'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/doctors/stats', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Stats fetch error:', errorData);
+        throw new Error('Failed to fetch doctor stats');
+      }
+      const data = await response.json();
+      console.log('Doctor stats response:', data);
+      return data;
+    }
   });
 
   const { data: appointments, isLoading: appointmentsLoading, refetch: refetchAppointments } = useQuery({
@@ -60,7 +93,12 @@ const DoctorDashboard = () => {
     queryFn: () => doctorApi.getAppointments(undefined, true),
   });
 
-  const isLoading = profileLoading || appointmentsLoading;
+  const isLoading = profileLoading || appointmentsLoading || statsLoading;
+
+  // Log stats data when it changes
+  React.useEffect(() => {
+    console.log('Current stats data:', stats);
+  }, [stats]);
 
   // Mutation for updating appointment status
   const updateAppointmentStatusMutation = useMutation({
@@ -218,7 +256,7 @@ const DoctorDashboard = () => {
                   <CalendarDays className="h-5 w-5 text-medisync-purple" />
                 </div>
                 <span className="text-3xl font-bold text-medisync-dark-purple">
-                  {profile?.appointmentCount || 0}
+                  {stats?.appointmentcount || 0}
                 </span>
               </div>
             </CardContent>
@@ -235,7 +273,24 @@ const DoctorDashboard = () => {
                   <Star className="h-5 w-5 text-yellow-500" />
                 </div>
                 <span className="text-3xl font-bold text-medisync-dark-purple">
-                  {profile?.avgRating?.toFixed(1) || "N/A"}
+                  {stats?.avgRating ? stats.avgRating.toFixed(1) : "N/A"}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Specialization
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="p-2 rounded-full bg-blue-100 mr-3">
+                  <Users className="h-5 w-5 text-blue-500" />
+                </div>
+                <span className="text-lg font-medium text-medisync-dark-purple">
+                  {profile?.specialization || "N/A"}
                 </span>
               </div>
             </CardContent>

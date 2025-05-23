@@ -254,13 +254,7 @@ const Dashboard = () => {
                     {new Date(upcomingAppointments[0].startTime).toLocaleDateString()} at{' '}
                     {new Date(upcomingAppointments[0].startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
-                  <Button 
-                    variant="link" 
-                    className="p-0 mt-2 text-medisync-purple h-auto"
-                    onClick={() => navigate('/dashboard/appointments')}
-                  >
-                    View all appointments
-                  </Button>
+                 
                 </div>
               ) : (
                 <div className="text-center py-4">
@@ -329,13 +323,7 @@ const Dashboard = () => {
                   
                   {pastAppointments.length > 3 && (
                     <div className="text-center mt-6">
-                      <Button 
-                        variant="link" 
-                        onClick={() => navigate('/dashboard/appointments')}
-                        className="text-medisync-purple"
-                      >
-                        View all past appointments
-                      </Button>
+                      
                     </div>
                   )}
                 </div>
