@@ -23,7 +23,7 @@ import Resources from "./pages/doctor/Resources";
 import AdminReports from "./pages/admin/AdminReports";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import ResourceRequests from "./pages/staff/ResourceRequests";
-
+import Resource from "./pages/staff/Resources";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -167,10 +167,14 @@ const App = () => (
             } />
             <Route path="/staff/resources" element={
               <ProtectedRoute allowedRoles={['Staff']}>
+                <Resource />
+              </ProtectedRoute>
+            } />
+            <Route path="/staff/resource-requests" element={
+              <ProtectedRoute allowedRoles={['Staff']}>
                 <ResourceRequests />
               </ProtectedRoute>
             } />
-
             {/* 404 page */}
             <Route path="*" element={<NotFound />} />
           </Routes>
