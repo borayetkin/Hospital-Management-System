@@ -46,6 +46,9 @@ const AdminReports = () => {
     }
   });
 
+  // Add loading state check
+  const isLoading = !reports || (reports.length > 0 && !viewingReportId);
+
   const { data: reportData } = useQuery({
     queryKey: ['reportData', viewingReportId],
     queryFn: async () => {
@@ -192,6 +195,45 @@ const AdminReports = () => {
   useEffect(() => {
     console.log('Selected Equipment Changed:', selectedEquipment);
   }, [selectedEquipment]);
+
+  // Add this useEffect to automatically select first report
+  useEffect(() => {
+    if (reports?.length > 0 && !viewingReportId) {
+      setViewingReportId(reports[0].reportid);
+    }
+  }, [reports, viewingReportId]);
+
+  // Add this function near the top of the component, after the state declarations
+  const handleExport = () => {
+    if (!reportData) return;
+
+    const exportData = {
+      reportId: currentReport?.reportid,
+      generatedDate: currentReport?.time_stamp,
+      timeframe: selectedTimeframe,
+      summary: {
+        totalPatients: patientStats.length,
+        totalAppointments: doctorStats.reduce((sum, doc) => sum + (doc.appointmentcount || 0), 0),
+        totalRevenue: doctorStats.reduce((sum, doc) => sum + (doc.totalrevenue || 0), 0),
+        averageRating: doctorStats.length > 0 
+          ? (doctorStats.reduce((sum, doc) => sum + (doc.ratings || 0), 0) / doctorStats.length)
+          : 0
+      },
+      doctorStatistics: doctorStats,
+      patientStatistics: patientStats,
+      equipmentStatistics: equipmentStats
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${currentReport?.reportid}-${format(new Date(currentReport?.time_stamp || new Date()), 'yyyy-MM-dd')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -441,6 +483,26 @@ const AdminReports = () => {
           </div>
         </div>
 
+        {isLoading ? (
+          <Card className="p-6">
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center">
+                <Clock className="h-8 w-8 animate-spin mx-auto mb-2 text-gray-400" />
+                <p className="text-gray-500">Loading report data...</p>
+              </div>
+            </div>
+          </Card>
+        ) : reports?.length === 0 ? (
+          <Card className="p-6">
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center">
+                <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                <p className="text-gray-500">No reports available. Create your first report to get started.</p>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <>
         {/* Report Header Information */}
         {currentReport && (
           <Card className="mb-6">
@@ -453,13 +515,38 @@ const AdminReports = () => {
                   </p>
                 </div>
                 <div className="flex space-x-2 mt-4 md:mt-0">
-                  <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => {
+                        if (!reportData) return;
+
+                        const exportData = {
+                          reportId: currentReport?.reportid,
+                          generatedDate: currentReport?.time_stamp,
+                          timeframe: selectedTimeframe,
+                          summary: {
+                            totalPatients: patientStats.length,
+                            totalAppointments: doctorStats.reduce((sum, doc) => sum + (doc.appointmentcount || 0), 0),
+                            totalRevenue: doctorStats.reduce((sum, doc) => sum + (doc.totalrevenue || 0), 0),
+                            averageRating: doctorStats.length > 0 
+                              ? (doctorStats.reduce((sum, doc) => sum + (doc.ratings || 0), 0) / doctorStats.length)
+                              : 0
+                          },
+                          doctorStatistics: doctorStats,
+                          patientStatistics: patientStats,
+                          equipmentStatistics: equipmentStats
+                        };
+
+                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `report-${currentReport?.reportid}-${format(new Date(currentReport?.time_stamp || new Date()), 'yyyy-MM-dd')}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                      }}>
                     <Download className="h-4 w-4 mr-1" />
                     Export
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <ListFilter className="h-4 w-4 mr-1" />
-                    Filter
                   </Button>
                 </div>
               </div>
@@ -709,7 +796,7 @@ const AdminReports = () => {
                     <tbody>
                       {equipmentStats?.map((equipment) => (
                         <tr key={equipment.resourceid} className="border-b hover:bg-gray-50">
-                          <td className="py-4 px-2">Resource {equipment.resourceid}</td>
+                          <td className="py-4 px-2">{equipment.resourcename}</td>
                           <td className="py-4 px-2">{equipment.usagecount || 0}</td>
                           <td className="py-4 px-2">{equipment.totalrequests || 0}</td>
                           <td className="py-4 px-2">{equipment.lastuseddate ? new Date(equipment.lastuseddate).toLocaleDateString() : 'N/A'}</td>
@@ -727,6 +814,8 @@ const AdminReports = () => {
             </Card>
           </TabsContent>
         </Tabs>
+          </>
+        )}
       </div>
     </div>
   );
