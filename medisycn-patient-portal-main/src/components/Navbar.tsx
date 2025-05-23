@@ -52,12 +52,14 @@ const Navbar = () => {
           { path: '/doctor/dashboard', label: 'Dashboard' },
           { path: '/doctor/appointments', label: 'Appointments' },
           { path: '/doctor/patients', label: 'Patients' },
+          { path: '/doctor/resources', label: 'Resources' },
         ];
       case 'Admin':
         return [
           { path: '/admin/dashboard', label: 'Dashboard' },
           { path: '/admin/doctors', label: 'Doctors' },
           { path: '/admin/patients', label: 'Patients' },
+          { path: '/admin/reports', label: 'Reports' },
         ];
       case 'Staff':
         return [

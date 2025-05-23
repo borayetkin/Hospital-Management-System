@@ -57,9 +57,14 @@ export interface DoctorWithAvailability extends DoctorProfile {
 
 // Doctor specific types
 export interface DoctorStats {
-  appointmentCount: number;
-  rating: number;
+  reportID: number;
+  statID: number;
+  doctorID: number;
   prescriptionCount: number;
+  appointmentCount: number;
+  totalRevenue: number;
+  reportDate: string;
+  ratings: number;
 }
 
 // Admin specific types
@@ -97,4 +102,53 @@ export interface Billing {
   amount: number;
   paymentstatus: string;
   processid: number;
+}
+
+export interface MedicalResource {
+  resourceID: number;
+  name: string;
+  availability: string;
+}
+
+// Request types - matching your Request table
+export interface ResourceRequest {
+  doctorID: number;
+  resourceID: number;
+  status: string;
+  doctorName?: string;
+  resourceName?: string;
+  requestDate?: string;
+  justification?: string;
+}
+
+export interface Prescription {
+  medicationName: string;
+  appointmentID: number;
+}
+
+// Report types - matching your Report and statistics tables
+export interface Report {
+  reportID: number;
+  created_by: number;
+  time_stamp: string;
+}
+
+export interface EquipmentStatistics {
+  statID: number;
+  reportID: number;
+  resourceID: number;
+  usageCount: number;
+  lastUsedDate: string;
+  totalRequests: number;
+}
+
+export interface PatientStatistics {
+  reportID: number;
+  statID: number;
+  patientID: number;
+  totalAppointments: number;
+  totalProcesses: number;
+  totalPaid: number;
+  lastVisit: string;
+  reportDate: string;
 }
