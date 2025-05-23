@@ -19,13 +19,26 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Transform API response to match frontend format
 const transformAppointmentData = (data: any): Appointment => {
+  // Helper function to ensure valid date string
+  const ensureValidDate = (dateStr: string | undefined) => {
+    if (!dateStr) return new Date().toISOString();
+    try {
+      const date = new Date(dateStr);
+      return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  };
+
+  console.log(data);
+
   return {
-    appointmentID: data.appointmentid || data.appointment_id || data.appointmentID,
-    patientID: data.patientid || data.patient_id || data.patientID,
+    appointmentid: data.appointmentid || data.appointment_id || data.appointmentID,
+    patientid: data.patientid || data.patient_id || data.patientID,
     doctorID: data.doctorid || data.doctor_id || data.doctorID,
     doctorName: data.doctorname || data.doctor_name || data.doctorName,
-    startTime: data.starttime || data.start_time || data.startTime,
-    endTime: data.endtime || data.end_time || data.endTime,
+    startTime: ensureValidDate(data.startTime || data.starttime || data.start_time),
+    endTime: ensureValidDate(data.endTime || data.endtime || data.end_time),
     status: (data.status || '').toLowerCase(),
     rating: data.rating,
     review: data.review,
@@ -39,9 +52,40 @@ const DoctorDashboard = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Fetch doctor profile
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['doctorProfile'],
-    queryFn: doctorApi.getProfile,
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/doctors/profile', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch doctor profile');
+      }
+      return response.json();
+    }
+  });
+
+  // Fetch doctor stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['doctorStats'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:8000/api/v1/doctors/stats', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Stats fetch error:', errorData);
+        throw new Error('Failed to fetch doctor stats');
+      }
+      const data = await response.json();
+      console.log('Doctor stats response:', data);
+      return data;
+    }
   });
 
   const { data: appointments, isLoading: appointmentsLoading, refetch: refetchAppointments } = useQuery({
@@ -49,7 +93,12 @@ const DoctorDashboard = () => {
     queryFn: () => doctorApi.getAppointments(undefined, true),
   });
 
-  const isLoading = profileLoading || appointmentsLoading;
+  const isLoading = profileLoading || appointmentsLoading || statsLoading;
+
+  // Log stats data when it changes
+  React.useEffect(() => {
+    console.log('Current stats data:', stats);
+  }, [stats]);
 
   // Mutation for updating appointment status
   const updateAppointmentStatusMutation = useMutation({
@@ -99,7 +148,7 @@ const DoctorDashboard = () => {
       // Update the local state immediately for a responsive UI
       if (appointments && selectedAppointment) {
         const updatedAppointments = appointments.map(appointment => 
-          appointment.appointmentID === variables.appointmentId 
+          appointment.appointmentid === variables.appointmentId 
             ? data // Use the transformed data from the API response
             : appointment
         );
@@ -126,7 +175,7 @@ const DoctorDashboard = () => {
   const handleCompleteAppointment = () => {
     if (selectedAppointment) {
       updateAppointmentStatusMutation.mutate({
-        appointmentId: selectedAppointment.appointmentID,
+        appointmentId: selectedAppointment.appointmentid,
         status: 'completed'
       });
     }
@@ -135,7 +184,7 @@ const DoctorDashboard = () => {
   const handleCancelAppointment = () => {
     if (selectedAppointment) {
       updateAppointmentStatusMutation.mutate({
-        appointmentId: selectedAppointment.appointmentID,
+        appointmentId: selectedAppointment.appointmentid,
         status: 'cancelled'
       });
     }
@@ -207,7 +256,7 @@ const DoctorDashboard = () => {
                   <CalendarDays className="h-5 w-5 text-medisync-purple" />
                 </div>
                 <span className="text-3xl font-bold text-medisync-dark-purple">
-                  {profile?.appointmentCount || 0}
+                  {stats?.appointmentcount || 0}
                 </span>
               </div>
             </CardContent>
@@ -224,7 +273,24 @@ const DoctorDashboard = () => {
                   <Star className="h-5 w-5 text-yellow-500" />
                 </div>
                 <span className="text-3xl font-bold text-medisync-dark-purple">
-                  {profile?.avgRating?.toFixed(1) || "N/A"}
+                  {stats?.avgRating ? stats.avgRating.toFixed(1) : "N/A"}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Specialization
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="p-2 rounded-full bg-blue-100 mr-3">
+                  <Users className="h-5 w-5 text-blue-500" />
+                </div>
+                <span className="text-lg font-medium text-medisync-dark-purple">
+                  {profile?.specialization || "N/A"}
                 </span>
               </div>
             </CardContent>
@@ -257,7 +323,7 @@ const DoctorDashboard = () => {
                   <div className="space-y-4">
                     {todayAppointments.map(appointment => (
                       <div 
-                        key={appointment.appointmentID} 
+                        key={appointment.appointmentid} 
                         className="p-4 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white flex justify-between items-center"
                       >
                         <div>
@@ -271,7 +337,7 @@ const DoctorDashboard = () => {
                               {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                             </span>
                           </div>
-                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientID}</p>
+                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientid}</p>
                           <p className="text-sm text-gray-500">
                             {format(new Date(appointment.startTime), 'h:mm a')} - {format(new Date(appointment.endTime), 'h:mm a')}
                           </p>
@@ -307,11 +373,11 @@ const DoctorDashboard = () => {
                   <div className="space-y-4">
                     {upcomingAppointments.map(appointment => (
                       <div 
-                        key={appointment.appointmentID} 
+                        key={appointment.appointmentid} 
                         className="p-4 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white flex justify-between items-center"
                       >
                         <div>
-                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientID}</p>
+                          <p className="font-medium text-medisync-dark-purple">Patient ID: {appointment.patientid}</p>
                           <p className="text-sm text-gray-500">
                             {format(new Date(appointment.startTime), 'EEEE, MMMM d')} at {format(new Date(appointment.startTime), 'h:mm a')}
                           </p>
@@ -345,14 +411,14 @@ const DoctorDashboard = () => {
           <DialogHeader>
             <DialogTitle className="text-xl text-medisync-dark-purple">Appointment Details</DialogTitle>
             <DialogDescription>
-              Appointment #{selectedAppointment?.appointmentID}
+              Appointment #{selectedAppointment?.appointmentid}
             </DialogDescription>
           </DialogHeader>
           {selectedAppointment && (
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-sm font-medium text-gray-500">Patient ID:</div>
-                <div className="text-sm font-semibold">{selectedAppointment.patientID}</div>
+                <div className="text-sm font-semibold">{selectedAppointment.patientid}</div>
                 <div className="text-sm font-medium text-gray-500">Date:</div>
                 <div className="text-sm font-semibold">
                   {format(new Date(selectedAppointment.startTime), 'EEEE, MMMM d, yyyy')}

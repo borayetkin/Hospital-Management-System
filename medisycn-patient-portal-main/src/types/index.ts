@@ -123,7 +123,7 @@ export interface ResourceRequest {
 
 export interface Prescription {
   medicationName: string;
-  appointmentID: number;
+  appointmentid: number;
 }
 
 // Report types - matching your Report and statistics tables
@@ -151,4 +151,10 @@ export interface PatientStatistics {
   totalPaid: number;
   lastVisit: string;
   reportDate: string;
+}
+
+export interface Medication {
+  medicationName: string;
+  description: string;
+  information: string;
 }

@@ -250,28 +250,7 @@ export const patientApi = {
   getAppointments: async (status?: string): Promise<Appointment[]> => {
     try {
       if (USE_MOCK_DATA) {
-        return await mockApiCall([
-          {
-            appointmentID: 1,
-            patientID: 1,
-            doctorID: 101,
-            doctorName: "Dr. Sarah Johnson",
-            startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-            endTime: new Date(Date.now() + 86400000 + 3600000).toISOString(),
-            status: "scheduled" as const,
-          },
-          {
-            appointmentID: 2,
-            patientID: 1,
-            doctorID: 102,
-            doctorName: "Dr. Mark Williams",
-            startTime: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-            endTime: new Date(Date.now() - 172800000 + 3600000).toISOString(),
-            status: "completed" as const,
-            rating: 5,
-            review: "Excellent doctor, very professional!",
-          },
-        ]);
+      
       }
 
       // Try real API call, but the response validation might fail
@@ -301,26 +280,7 @@ export const patientApi = {
 
         // Fall back to mock data if the API call fails
         return [
-          {
-            appointmentID: 1,
-            patientID: 1,
-            doctorID: 101,
-            doctorName: "Dr. Sarah Johnson",
-            startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-            endTime: new Date(Date.now() + 86400000 + 3600000).toISOString(),
-            status: "scheduled" as const,
-          },
-          {
-            appointmentID: 2,
-            patientID: 1,
-            doctorID: 102,
-            doctorName: "Dr. Mark Williams",
-            startTime: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-            endTime: new Date(Date.now() - 172800000 + 3600000).toISOString(),
-            status: "completed" as const,
-            rating: 5,
-            review: "Excellent doctor, very professional!",
-          },
+     
         ];
       }
     } catch (error) {
@@ -706,24 +666,8 @@ export const doctorApi = {
       } catch (apiError) {
         console.error("API error, falling back to mock data:", apiError);
         // Fall back to mock data if API call fails
-        return mockApiCall([
-          {
-            appointmentID: 1,
-            patientID: 1,
-            doctorID: 101,
-            startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-            endTime: new Date(Date.now() + 86400000 + 3600000).toISOString(),
-            status: "scheduled" as const,
-          },
-          {
-            appointmentID: 2,
-            patientID: 2,
-            doctorID: 101,
-            startTime: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-            endTime: new Date(Date.now() - 172800000 + 3600000).toISOString(),
-            status: "completed" as const,
-          },
-        ]);
+       
+       
       }
     } catch (error) {
       console.error("Get doctor appointments error:", error);
