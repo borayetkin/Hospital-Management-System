@@ -247,7 +247,27 @@ async def update_appointment_status(
             detail="Failed to retrieve updated appointment"
         )
     
-    return appointment[0]
+    # Map process fields to camelCase for frontend compatibility
+    appt = appointment[0]
+    if "processes" in appt and isinstance(appt["processes"], list):
+        new_processes = []
+        for proc in appt["processes"]:
+            new_proc = {
+                "processid": proc.get("processid"),
+                "processName": proc.get("processName") or proc.get("processname"),
+                "processDescription": proc.get("processDescription") or proc.get("processdescription"),
+                "status": proc.get("status"),
+                "doctor_name": proc.get("doctor_name"),
+                "process_date": proc.get("process_date"),
+                "billing": proc.get("billing") or {
+                    "amount": proc.get("amount"),
+                    "paymentStatus": proc.get("paymentStatus") or proc.get("paymentstatus"),
+                    "billingDate": proc.get("billingDate")
+                }
+            }
+            new_processes.append(new_proc)
+        appt["processes"] = new_processes
+    return appt
 
 @router.put("/{appointment_id}/review", response_model=AppointmentResponse)
 async def add_appointment_review(
@@ -303,5 +323,25 @@ async def add_appointment_review(
             detail="Failed to retrieve updated appointment"
         )
     
-    return appointment[0]
+    # Map process fields to camelCase for frontend compatibility
+    appt = appointment[0]
+    if "processes" in appt and isinstance(appt["processes"], list):
+        new_processes = []
+        for proc in appt["processes"]:
+            new_proc = {
+                "processid": proc.get("processid"),
+                "processName": proc.get("processName") or proc.get("processname"),
+                "processDescription": proc.get("processDescription") or proc.get("processdescription"),
+                "status": proc.get("status"),
+                "doctor_name": proc.get("doctor_name"),
+                "process_date": proc.get("process_date"),
+                "billing": proc.get("billing") or {
+                    "amount": proc.get("amount"),
+                    "paymentStatus": proc.get("paymentStatus") or proc.get("paymentstatus"),
+                    "billingDate": proc.get("billingDate")
+                }
+            }
+            new_processes.append(new_proc)
+        appt["processes"] = new_processes
+    return appt
 
