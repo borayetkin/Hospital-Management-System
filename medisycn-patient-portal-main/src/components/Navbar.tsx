@@ -42,7 +42,6 @@ const Navbar = () => {
     switch (user.role) {
       case 'Patient':
         return [
-          { path: '/dashboard', label: 'Dashboard' },
           { path: '/doctors', label: 'Find Doctors' },
           { path: '/profile', label: 'Profile' },
         ];
@@ -84,17 +83,14 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
-            {user?.role !== 'Admin' && (
-              <Link to="/" className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === '/' ? 'text-medisync-purple' : ''}`}>
-                Home
-              </Link>
+            {user?.role === 'Patient' && (
+              <Link to="/" className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === '/' ? 'text-medisync-purple' : ''}`}>Home</Link>
             )}
             {isAuthenticated && navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === link.path ? 'text-medisync-purple' : ''
-                  }`}
+                className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === link.path ? 'text-medisync-purple' : ''}`}
               >
                 {link.label}
               </Link>
@@ -170,12 +166,12 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white pb-3 pt-2">
           <div className="px-2 space-y-1 sm:px-3">
-            {user?.role !== 'Admin' && (
+            {user?.role === 'Patient' && (
               <Link
                 to="/"
                 className={`block px-3 py-2 rounded-md text-base font-medium ${location.pathname === '/'
-                    ? 'text-medisync-purple bg-gray-50'
-                    : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
+                  ? 'text-medisync-purple bg-gray-50'
+                  : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
                   }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
@@ -187,8 +183,8 @@ const Navbar = () => {
                 key={link.path}
                 to={link.path}
                 className={`block px-3 py-2 rounded-md text-base font-medium ${location.pathname === link.path
-                    ? 'text-medisync-purple bg-gray-50'
-                    : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
+                  ? 'text-medisync-purple bg-gray-50'
+                  : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
                   }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
