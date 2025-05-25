@@ -149,21 +149,19 @@ async def create_report(
                 WITH equipment_metrics AS (
                     SELECT 
                         mr.resourceID,
-                        mr.name as resourceName,
                         COUNT(DISTINCT r.doctorID) as usageCount,
                         MAX(r.status) as lastStatus,
                         COUNT(DISTINCT r.doctorID) as totalRequests
                     FROM MedicalResources mr
                     LEFT JOIN Request r ON mr.resourceID = r.resourceID
                     WHERE mr.resourceID IN ({equipment_ids_str})
-                    GROUP BY mr.resourceID, mr.name
+                    GROUP BY mr.resourceID
                 )
-                INSERT INTO EquipmentStatistics (statID, reportID, resourceID, resourceName, usageCount, lastUsedDate, totalRequests)
+                INSERT INTO EquipmentStatistics (statID, reportID, resourceID, usageCount, lastUsedDate, totalRequests)
                 SELECT 
                     ROW_NUMBER() OVER () as statID,
                     %s as reportID,
                     resourceID,
-                    resourceName,
                     COALESCE(usageCount, 0),
                     CURRENT_DATE as lastUsedDate,
                     COALESCE(totalRequests, 0)
