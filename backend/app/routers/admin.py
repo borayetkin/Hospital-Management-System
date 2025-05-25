@@ -168,6 +168,9 @@ async def generate_report(current_user = Depends(get_current_user)):
         # Get all equipment for statistics
         resources = execute_query("SELECT resourceID FROM MedicalResources")
         
+        # Get all appointments for statistics
+        appointments = execute_query("SELECT appointmentID FROM Appointment")
+        
         # Create statistics in a transaction
         transaction_queries = []
         
@@ -259,6 +262,44 @@ async def generate_report(current_user = Depends(get_current_user)):
                         resource_stats[0]["totalrequests"] or 0
                     )
                 ))
+
+        # Appointment statistics
+        for i, appointment in enumerate(appointments):
+            # Get appointment stats
+            appointment_stats = execute_query("""
+                SELECT 
+                    a.status,
+                    a.rating,
+                    a.startTime,
+                    a.endTime,
+                    COUNT(p.processID) as totalProcesses,
+                    SUM(b.amount) as totalBilling
+                FROM Appointment a
+                LEFT JOIN Process p ON a.appointmentID = p.appointmentID
+                LEFT JOIN Billing b ON p.processID = b.processID
+                WHERE a.appointmentID = %s
+                GROUP BY a.appointmentID, a.status, a.rating, a.startTime, a.endTime
+            """, (appointment["appointmentid"],))
+            
+            if appointment_stats:
+                transaction_queries.append((
+                    """
+                    INSERT INTO AppointmentStatistics 
+                    (statID, reportID, appointmentID, status, rating, startTime, endTime, totalProcesses, totalBilling)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        i + 1,  # statID
+                        report_id,
+                        appointment["appointmentid"],
+                        appointment_stats[0]["status"],
+                        appointment_stats[0]["rating"],
+                        appointment_stats[0]["starttime"],
+                        appointment_stats[0]["endtime"],
+                        appointment_stats[0]["totalprocesses"] or 0,
+                        appointment_stats[0]["totalbilling"] or 0
+                    )
+                ))
         
         # Execute transaction
         execute_transaction(transaction_queries)
@@ -269,7 +310,8 @@ async def generate_report(current_user = Depends(get_current_user)):
             "timestamp": datetime.now(),
             "patientStatistics": len(patients),
             "doctorStatistics": len(doctors),
-            "equipmentStatistics": len(resources)
+            "equipmentStatistics": len(resources),
+            "appointmentStatistics": len(appointments)
         }
         
     except Exception as e:
