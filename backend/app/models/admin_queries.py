@@ -3,7 +3,8 @@
 # Get all doctors
 GET_ALL_DOCTORS = """
 SELECT d.employeeID, u.name, d.specialization, d.doctorLocation, d.deptName,
-       AVG(a.rating) as rating
+       AVG(a.rating) as rating,
+       COUNT(a.appointmentID) as appointmentcount
 FROM Doctors d
 JOIN "User" u ON d.employeeID = u.userID
 LEFT JOIN Appointment a ON d.employeeID = a.doctorID
