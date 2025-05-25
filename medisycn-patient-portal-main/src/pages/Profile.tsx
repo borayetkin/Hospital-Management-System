@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -21,14 +20,14 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isAddingFunds, setIsAddingFunds] = useState(false);
-  
+
   // Form states
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phoneNumber: ''
   });
-  
+
   const [fundAmount, setFundAmount] = useState<number>(0);
 
   useEffect(() => {
@@ -70,7 +69,7 @@ const Profile = () => {
 
   const handleSaveProfile = async () => {
     if (!profile) return;
-    
+
     setIsSaving(true);
     try {
       const updatedProfile = await patientApi.updateProfile(formData);
@@ -93,7 +92,7 @@ const Profile = () => {
 
   const handleAddFunds = async () => {
     if (!profile || fundAmount <= 0) return;
-    
+
     setIsAddingFunds(true);
     try {
       const updatedProfile = await patientApi.addFunds(fundAmount);
@@ -137,17 +136,17 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Your Profile</h1>
-        
+
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="profile">Profile Information</TabsTrigger>
             <TabsTrigger value="payment">Payment & Billing</TabsTrigger>
             <TabsTrigger value="settings">Account Settings</TabsTrigger>
           </TabsList>
-          
+
           {/* Profile Information Tab */}
           <TabsContent value="profile">
             <Card>
@@ -157,7 +156,7 @@ const Profile = () => {
                   Manage your personal information
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
@@ -168,7 +167,7 @@ const Profile = () => {
                     onChange={handleInputChange}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <Input
@@ -179,7 +178,7 @@ const Profile = () => {
                     onChange={handleInputChange}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="phoneNumber">Phone Number</Label>
                   <Input
@@ -189,12 +188,12 @@ const Profile = () => {
                     onChange={handleInputChange}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="dob">Date of Birth</Label>
                   <Input
                     id="dob"
-                    value={profile?.dateOfBirth || ''}
+                    value={profile?.dob || ''}
                     disabled
                   />
                   <p className="text-xs text-gray-500">
@@ -202,10 +201,10 @@ const Profile = () => {
                   </p>
                 </div>
               </CardContent>
-              
+
               <CardFooter>
-                <Button 
-                  onClick={handleSaveProfile} 
+                <Button
+                  onClick={handleSaveProfile}
                   disabled={isSaving}
                   className="bg-medisync-purple hover:bg-medisync-purple-dark"
                 >
@@ -214,7 +213,7 @@ const Profile = () => {
               </CardFooter>
             </Card>
           </TabsContent>
-          
+
           {/* Payment & Billing Tab */}
           <TabsContent value="payment">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -225,7 +224,7 @@ const Profile = () => {
                     Add funds to your account
                   </CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="bg-medisync-purple/10 p-4 rounded-md">
                     <p className="text-sm text-gray-600">Current Balance</p>
@@ -233,7 +232,7 @@ const Profile = () => {
                       ${profile?.balance.toFixed(2)}
                     </p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="fundAmount">Add Funds</Label>
                     <Input
@@ -241,15 +240,19 @@ const Profile = () => {
                       type="number"
                       min="0"
                       step="10"
-                      value={fundAmount}
-                      onChange={(e) => setFundAmount(Number(e.target.value))}
+                      value={fundAmount === 0 ? '' : fundAmount}
+                      onChange={(e) => {
+                        // Remove leading zeros
+                        const sanitized = e.target.value.replace(/^0+(?=\d)/, '');
+                        setFundAmount(sanitized === '' ? 0 : Number(sanitized));
+                      }}
                     />
                   </div>
                 </CardContent>
-                
+
                 <CardFooter>
-                  <Button 
-                    onClick={handleAddFunds} 
+                  <Button
+                    onClick={handleAddFunds}
                     disabled={isAddingFunds || fundAmount <= 0}
                     className="bg-medisync-purple hover:bg-medisync-purple-dark"
                   >
@@ -257,7 +260,7 @@ const Profile = () => {
                   </Button>
                 </CardFooter>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Payment Methods</CardTitle>
@@ -265,7 +268,7 @@ const Profile = () => {
                     Manage your saved payment methods
                   </CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="p-4 border rounded-md flex justify-between items-center">
                     <div className="flex items-center">
@@ -283,7 +286,7 @@ const Profile = () => {
                       <Button variant="outline" size="sm">Edit</Button>
                     </div>
                   </div>
-                  
+
                   <Button variant="outline" className="w-full">
                     <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -294,7 +297,7 @@ const Profile = () => {
               </Card>
             </div>
           </TabsContent>
-          
+
           {/* Account Settings Tab */}
           <TabsContent value="settings">
             <Card>
@@ -304,7 +307,7 @@ const Profile = () => {
                   Manage your account preferences and settings
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="space-y-6">
                 {/* Notification Settings */}
                 <div>
@@ -329,7 +332,7 @@ const Profile = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Privacy Settings */}
                 <div>
                   <h3 className="text-lg font-medium mb-3">Privacy</h3>
@@ -347,7 +350,7 @@ const Profile = () => {
                     Allow anonymized data to be used for healthcare research and improvements.
                   </p>
                 </div>
-                
+
                 {/* Danger Zone */}
                 <div>
                   <h3 className="text-lg font-medium text-red-600 mb-3">Danger Zone</h3>
