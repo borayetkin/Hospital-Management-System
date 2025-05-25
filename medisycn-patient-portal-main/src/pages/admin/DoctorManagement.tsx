@@ -15,8 +15,8 @@ const DoctorManagement = () => {
     queryFn: adminApi.getDoctors,
   });
 
-  const filteredDoctors = doctors?.filter(doctor => 
-    doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredDoctors = doctors?.filter(doctor =>
+    doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -25,7 +25,7 @@ const DoctorManagement = () => {
       <Navbar />
       <div className="my-8">
         <h1 className="text-3xl font-semibold mb-6">Doctor Management</h1>
-        
+
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <div className="relative flex-grow">
             <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
@@ -37,7 +37,7 @@ const DoctorManagement = () => {
             />
           </div>
         </div>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Doctors ({filteredDoctors?.length || 0})</CardTitle>
@@ -55,7 +55,6 @@ const DoctorManagement = () => {
                       <th className="text-left py-4 px-2">Specialization</th>
                       <th className="text-left py-4 px-2">Rating</th>
                       <th className="text-left py-4 px-2">Appointments</th>
-                      <th className="text-left py-4 px-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -71,9 +70,6 @@ const DoctorManagement = () => {
                           </div>
                         </td>
                         <td className="py-4 px-2">{doctor.appointmentCount}</td>
-                        <td className="py-4 px-2">
-                          <Button variant="outline" size="sm">View Details</Button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
