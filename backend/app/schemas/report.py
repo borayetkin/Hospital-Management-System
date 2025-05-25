@@ -1,9 +1,11 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 
 class ReportGenerationRequest(BaseModel):
     timeframe: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     patient_ids: Optional[List[int]] = None
     doctor_ids: Optional[List[int]] = None
     equipment_ids: Optional[List[int]] = None
@@ -21,8 +23,8 @@ class PatientStatistics(BaseModel):
     totalappointments: int
     totalprocesses: int
     totalpaid: float
-    lastvisit: datetime
-    reportdate: datetime
+    lastvisit: Optional[date]
+    reportdate: date
 
 class DoctorStatistics(BaseModel):
     statid: int
@@ -33,7 +35,7 @@ class DoctorStatistics(BaseModel):
     prescriptioncount: int
     appointmentcount: int
     totalrevenue: float
-    reportdate: datetime
+    reportdate: date
     ratings: float
 
 class EquipmentStatistics(BaseModel):
@@ -42,7 +44,7 @@ class EquipmentStatistics(BaseModel):
     resourceid: int
     resourcename: str
     usagecount: int
-    lastuseddate: datetime
+    lastuseddate: date
     totalrequests: int
 
 class ReportDetail(ReportBase):

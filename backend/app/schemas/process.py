@@ -24,7 +24,7 @@ class ProcessResponse(BaseModel):
     processName: str
     processDescription: str
     status: str
-    billing: Optional[BillingResponse]
+    billing: Optional[BillingResponse] = None
 
     class Config:
         from_attributes = True 
