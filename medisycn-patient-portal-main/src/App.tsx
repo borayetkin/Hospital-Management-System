@@ -17,7 +17,6 @@ import AppointmentReview from './pages/patient/AppointmentReview';
 // Doctor pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import AppointmentManagement from "./pages/doctor/AppointmentManagement";
-import AppointmentMan from "./pages/doctor/AppointmentMan";
 import PatientMedicalHistory from './pages/doctor/PatientMedicalHistory';
 import DoctorPatients from "./pages/doctor/DoctorPatients";
 import Resources from "./pages/doctor/Resources";
@@ -35,27 +34,27 @@ import PatientManagement from "./pages/admin/PatientManagement";
 const queryClient = new QueryClient();
 
 // Role-based route protection
-const ProtectedRoute = ({ children, allowedRoles = [] }: { 
+const ProtectedRoute = ({ children, allowedRoles = [] }: {
   children: React.ReactNode;
   allowedRoles?: string[];
 }) => {
   const userString = localStorage.getItem('user');
-  
+
   if (!userString) {
     return <Navigate to="/login" replace />;
   }
-  
+
   try {
     const user = JSON.parse(userString);
-    
+
     if (!user) {
       return <Navigate to="/login" replace />;
     }
-    
+
     if (allowedRoles.length === 0 || allowedRoles.includes(user.role)) {
       return <>{children}</>;
     }
-    
+
     // Redirect to appropriate dashboard based on role
     if (user.role === 'Doctor') {
       return <Navigate to="/doctor/dashboard" replace />;
@@ -140,11 +139,7 @@ const App = () => (
             } />
 
             {/* Admin routes */}
-            <Route path="/admin/dashboard" element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
+            <Route path="/admin/dashboard" element={<Navigate to="/admin/doctors" replace />} />
             <Route path="/admin/doctors" element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DoctorManagement />

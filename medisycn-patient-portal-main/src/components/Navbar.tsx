@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -24,7 +23,7 @@ const Navbar = () => {
 
   const getDashboardLink = () => {
     if (!user) return "/dashboard";
-    
+
     switch (user.role) {
       case 'Doctor':
         return '/doctor/dashboard';
@@ -56,7 +55,6 @@ const Navbar = () => {
         ];
       case 'Admin':
         return [
-          { path: '/admin/dashboard', label: 'Dashboard' },
           { path: '/admin/doctors', label: 'Doctors' },
           { path: '/admin/patients', label: 'Patients' },
           { path: '/admin/reports', label: 'Reports' },
@@ -86,16 +84,17 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
-            <Link to="/" className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === '/' ? 'text-medisync-purple' : ''}`}>
-              Home
-            </Link>
+            {user?.role !== 'Admin' && (
+              <Link to="/" className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === '/' ? 'text-medisync-purple' : ''}`}>
+                Home
+              </Link>
+            )}
             {isAuthenticated && navLinks.map((link) => (
-              <Link 
-                key={link.path} 
-                to={link.path} 
-                className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${
-                  location.pathname === link.path ? 'text-medisync-purple' : ''
-                }`}
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`text-gray-700 hover:text-medisync-purple px-3 py-2 text-sm font-medium ${location.pathname === link.path ? 'text-medisync-purple' : ''
+                  }`}
               >
                 {link.label}
               </Link>
@@ -109,15 +108,17 @@ const Navbar = () => {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center space-x-1">
-                      <User className="inline-block mr-1 h-4 w-4" /> 
+                      <User className="inline-block mr-1 h-4 w-4" />
                       <span>{user?.name}</span>
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(getDashboardLink())}>
-                      Dashboard
-                    </DropdownMenuItem>
+                    {user?.role !== 'Admin' && (
+                      <DropdownMenuItem onClick={() => navigate(getDashboardLink())}>
+                        Dashboard
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="h-4 w-4 mr-2" />
                       <span>Logout</span>
@@ -127,13 +128,13 @@ const Navbar = () => {
               </div>
             ) : (
               <>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => navigate('/login')}
                 >
                   Login
                 </Button>
-                <Button 
+                <Button
                   onClick={() => navigate('/register')}
                   className="bg-medisync-purple hover:bg-medisync-purple-dark"
                 >
@@ -169,26 +170,26 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white pb-3 pt-2">
           <div className="px-2 space-y-1 sm:px-3">
-            <Link 
-              to="/" 
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                location.pathname === '/' 
-                  ? 'text-medisync-purple bg-gray-50' 
-                  : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
-              }`}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Home
-            </Link>
-            {isAuthenticated && navLinks.map((link) => (
-              <Link 
-                key={link.path} 
-                to={link.path} 
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location.pathname === link.path 
-                    ? 'text-medisync-purple bg-gray-50' 
+            {user?.role !== 'Admin' && (
+              <Link
+                to="/"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${location.pathname === '/'
+                    ? 'text-medisync-purple bg-gray-50'
                     : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
-                }`}
+                  }`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+            )}
+            {isAuthenticated && navLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`block px-3 py-2 rounded-md text-base font-medium ${location.pathname === link.path
+                    ? 'text-medisync-purple bg-gray-50'
+                    : 'text-gray-700 hover:text-medisync-purple hover:bg-gray-50'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.label}
@@ -217,8 +218,8 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="mt-3 px-2 space-y-1">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     navigate('/login');
                     setIsMobileMenuOpen(false);
@@ -227,7 +228,7 @@ const Navbar = () => {
                 >
                   Login
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     navigate('/register');
                     setIsMobileMenuOpen(false);
