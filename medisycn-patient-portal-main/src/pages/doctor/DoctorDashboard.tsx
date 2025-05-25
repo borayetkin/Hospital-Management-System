@@ -132,27 +132,27 @@ const DoctorDashboard = () => {
     },
     onSuccess: (data, variables) => {
       console.log('Cancel mutation succeeded, transformed data:', data);
-      
+
       // Force refetch appointments to get updated data
       refetchAppointments();
-      
+
       // Also invalidate the query cache to ensure a fresh fetch
       queryClient.invalidateQueries({ queryKey: ['doctorAppointments'] });
-      
+
       toast({
         title: "Appointment updated",
         description: `Appointment has been ${variables.status}`,
       });
       setIsDialogOpen(false);
-      
+
       // Update the local state immediately for a responsive UI
       if (appointments && selectedAppointment) {
-        const updatedAppointments = appointments.map(appointment => 
-          appointment.appointmentid === variables.appointmentId 
+        const updatedAppointments = appointments.map(appointment =>
+          appointment.appointmentid === variables.appointmentId
             ? data // Use the transformed data from the API response
             : appointment
         );
-        
+
         // Update the appointments data directly in the query cache
         queryClient.setQueryData(['doctorAppointments', 'upcoming'], updatedAppointments);
       }
@@ -220,6 +220,9 @@ const DoctorDashboard = () => {
   const todayAppointments = getTodayAppointments();
   const upcomingAppointments = getUpcomingAppointments();
 
+  // Helper to get average rating from stats with any backend field naming
+  const avgRating = stats?.avgRating ?? stats?.avgrating ?? stats?.avg_rating ?? stats?.rating;
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white">
@@ -273,7 +276,7 @@ const DoctorDashboard = () => {
                   <Star className="h-5 w-5 text-yellow-500" />
                 </div>
                 <span className="text-3xl font-bold text-medisync-dark-purple">
-                  {stats?.avgRating ? stats.avgRating.toFixed(1) : "N/A"}
+                  {avgRating ? avgRating.toFixed(1) : "N/A"}
                 </span>
               </div>
             </CardContent>
@@ -299,13 +302,13 @@ const DoctorDashboard = () => {
         <Tabs defaultValue="today" className="w-full">
           <div className="mb-4 border-b">
             <TabsList className="bg-transparent">
-              <TabsTrigger 
-                value="today" 
+              <TabsTrigger
+                value="today"
                 className="data-[state=active]:border-medisync-purple data-[state=active]:text-medisync-purple data-[state=active]:border-b-2 rounded-none border-b-2 border-transparent px-4 py-2"
               >
                 Today's Appointments
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="upcoming"
                 className="data-[state=active]:border-medisync-purple data-[state=active]:text-medisync-purple data-[state=active]:border-b-2 rounded-none border-b-2 border-transparent px-4 py-2"
               >
@@ -322,8 +325,8 @@ const DoctorDashboard = () => {
                 {todayAppointments.length > 0 ? (
                   <div className="space-y-4">
                     {todayAppointments.map(appointment => (
-                      <div 
-                        key={appointment.appointmentid} 
+                      <div
+                        key={appointment.appointmentid}
                         className="p-4 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white flex justify-between items-center"
                       >
                         <div>
@@ -331,7 +334,7 @@ const DoctorDashboard = () => {
                             <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium
                               ${appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
                                 appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
+                                  'bg-red-100 text-red-800'
                               }`}
                             >
                               {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -342,7 +345,7 @@ const DoctorDashboard = () => {
                             {format(new Date(appointment.startTime), 'h:mm a')} - {format(new Date(appointment.endTime), 'h:mm a')}
                           </p>
                         </div>
-                        <Button 
+                        <Button
                           onClick={() => handleViewDetails(appointment)}
                           className="bg-medisync-purple hover:bg-medisync-purple-dark text-white"
                         >
@@ -372,8 +375,8 @@ const DoctorDashboard = () => {
                 {upcomingAppointments.length > 0 ? (
                   <div className="space-y-4">
                     {upcomingAppointments.map(appointment => (
-                      <div 
-                        key={appointment.appointmentid} 
+                      <div
+                        key={appointment.appointmentid}
                         className="p-4 border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white flex justify-between items-center"
                       >
                         <div>
@@ -382,7 +385,7 @@ const DoctorDashboard = () => {
                             {format(new Date(appointment.startTime), 'EEEE, MMMM d')} at {format(new Date(appointment.startTime), 'h:mm a')}
                           </p>
                         </div>
-                        <Button 
+                        <Button
                           onClick={() => handleViewDetails(appointment)}
                           className="bg-medisync-purple hover:bg-medisync-purple-dark text-white"
                         >
@@ -425,7 +428,7 @@ const DoctorDashboard = () => {
                 </div>
                 <div className="text-sm font-medium text-gray-500">Time:</div>
                 <div className="text-sm font-semibold">
-                  {format(new Date(selectedAppointment.startTime), 'h:mm a')} - 
+                  {format(new Date(selectedAppointment.startTime), 'h:mm a')} -
                   {format(new Date(selectedAppointment.endTime), 'h:mm a')}
                 </div>
                 <div className="text-sm font-medium text-gray-500">Status:</div>
@@ -433,7 +436,7 @@ const DoctorDashboard = () => {
                   <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium 
                     ${selectedAppointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
                       selectedAppointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
+                        'bg-red-100 text-red-800'
                     }`}
                   >
                     {selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}
@@ -453,7 +456,7 @@ const DoctorDashboard = () => {
                 )}
               </div>
               <DialogFooter className="mt-6">
-                <Button 
+                <Button
                   onClick={() => setIsDialogOpen(false)}
                   className="bg-medisync-purple hover:bg-medisync-purple-dark text-white"
                 >
